@@ -60,18 +60,21 @@ userRouter.callbackQuery("send_id_to_admin", async (ctx) => {
   }
   
   const user = ctx.from;
-  const userInfo = `🆕 **Запит на додавання в адміни!**\n\n` +
-                   `👤 **Ім'я:** ${user.first_name || ''} ${user.last_name || ''}\n` +
-                   `🔗 **Username:** ${user.username ? '@' + user.username : 'немає'}\n` +
-                   `🆔 **Telegram ID:** \`${user.id}\`\n\n` +
-                   `_Щоб додати його, перейдіть в Адмін-панель -> Адміністратори -> Додати._`;
+  const safeFirstName = (user.first_name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safeLastName = (user.last_name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
+  const userInfo = `🆕 <b>Запит на додавання в адміни!</b>\n\n` +
+                   `👤 <b>Ім'я:</b> ${safeFirstName} ${safeLastName}\n` +
+                   `🔗 <b>Username:</b> ${user.username ? '@' + user.username : 'немає'}\n` +
+                   `🆔 <b>Telegram ID:</b> <code>${user.id}</code>\n\n` +
+                   `<i>Щоб додати його, перейдіть в Адмін-панель -> Адміністратори -> Додати.</i>`;
                    
   try {
-    await ctx.api.sendMessage(superAdminId, userInfo, { parse_mode: "Markdown" });
+    await ctx.api.sendMessage(superAdminId, userInfo, { parse_mode: "HTML" });
     await ctx.editMessageText("✅ Ваш ID успішно надіслано головному адміністратору!");
   } catch (err) {
-    console.error("Не вдалося надіслати адміну:", err);
-    await ctx.editMessageText("❌ Не вдалося надіслати повідомлення. Можливо, адмін ще не запускав бота.");
+    console.error("Не вдалося надіслати адміну:", err.message);
+    await ctx.editMessageText("❌ Не вдалося надіслати повідомлення.\nПричина: " + err.message);
   }
 });
 
