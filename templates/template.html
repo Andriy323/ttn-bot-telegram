@@ -1,0 +1,691 @@
+<!doctype html>
+<html>
+
+<head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+
+<body>
+    <div id="page1" class="page" style="position:relative;width:1123px;height:794px">
+        <div class="s8" style="top:23px;left:57px;width:1028px;height:748px;"></div>
+        <div class="s9 s10" style="top:61px;left:58px;width:1028px;height:19px;">
+            <table>
+                <tr>
+                    <td>ТОВАРНО-ТРАНСПОРТНА НАКЛАДНА
+            </table>
+        </div>
+        <div class="s11" style="top:80px;left:454px;width:106px;height:26px;"></div>
+        <div class="s9 s12" style="top:80px;left:454px;width:104px;height:26px;">
+            <table>
+                <tr>
+                    <td>№ {{ttn_number}}
+            </table>
+        </div>
+        <div class="s11" style="top:80px;left:571px;width:173px;height:26px;"></div>
+        <div class="s9 s12" style="top:80px;left:571px;width:171px;height:26px;">
+            <table>
+                <tr>
+                    <td>{{ttn_date}}
+            </table>
+        </div>
+        <div class="s8 s13" style="top:256px;left:57px;width:126px;height:18px;">Вантажовідправник</div>
+        <div class="s11" style="top:256px;left:185px;width:901px;height:19px;"></div>
+        <div class="s8 s13" style="top:256px;left:185px;width:899px;height:18px;">{{shipper_info}}</div>
+        <div class="s14 s15" style="top:275px;left:185px;width:898px;height:29px;">(повне найменування (прізвище (за
+            наявності), власне ім&#39;я та по батькові (за наявності), унікальний номер запису в Єдиному державному
+            демографічному реєстрі (за наявності), код платника податків згідно з Єдиним державним реєстром підприємств
+            та організацій України або податковий номер (реєстраційний номер облікової картки платника податків або
+            серія (за наявності) та номер паспорта громадянина України (для фізичних осіб, які через свої релігійні
+            переконання відмовляються від прийняття реєстраційного номера облікової картки платника податків та
+            повідомили про це відповідний контролюючий орган і мають відмітку в паспорті))</div>
+        <div class="s8 s13" style="top:323px;left:57px;width:126px;height:17px;">Вантажоодержувач</div>
+        <div class="s11" style="top:322px;left:186px;width:904px;height:18px;"></div>
+        <div class="s8 s13" style="top:322px;left:186px;width:902px;height:17px;">{{consignee_info}}</div>
+        <div class="s14 s15" style="top:341px;left:185px;width:898px;height:30px;">(повне найменування, (прізвище (за
+            наявності), власне ім&#39;я та по батькові (за наявності), унікальний номер запису в Єдиному державному
+            демографічному реєстрі (за наявності), код платника податків згідно з Єдиним державним реєстром підприємств
+            та організацій України або податковий номер (реєстраційний номер облікової картки платника податків або
+            серія (за наявності) та номер паспорта громадянина України (для фізичних осіб, які через свої релігійні
+            переконання відмовляються від прийняття реєстраційного номера облікової картки платника податків та
+            повідомили про це відповідний контролюючий орган і мають відмітку в паспорті))</div>
+        <div class="s8 s13" style="top:390px;left:57px;width:130px;height:18px;">Пункт навантаження</div>
+        <div class="s11" style="top:389px;left:189px;width:379px;height:19px;"></div>
+        <div class="s16 s13" style="top:389px;left:189px;width:377px;height:18px;">{{loading_point}}</div>
+        <div class="s17 s18" style="top:408px;left:189px;width:378px;height:10px;">(місцезнаходження)</div>
+        <div class="s8 s13" style="top:389px;left:567px;width:134px;height:18px;">Пункт розвантаження</div>
+        <div class="s11" style="top:389px;left:704px;width:383px;height:19px;"></div>
+        <div class="s16 s13" style="top:389px;left:704px;width:381px;height:18px;">{{unloading_point}}</div>
+        <div class="s17 s18" style="top:408px;left:703px;width:382px;height:10px;">(місцезнаходження)</div>
+        <div class="s8 s13" style="top:503px;left:57px;width:308px;height:47px;">Відомості про транспортний
+            засіб<br />(автомобіль/автопоїзд/комбінований транспортний засіб)</div>
+        <div class="s11" style="top:532px;left:367px;width:77px;height:19px;"></div>
+        <div class="s8 s19" style="top:532px;left:367px;width:77px;height:18px;">11,2</div>
+        <div class="s8 s13" style="top:452px;left:59px;width:92px;height:17px;">кількість місць</div>
+        <div class="s11" style="top:452px;left:153px;width:122px;height:18px;"></div>
+        <div class="s8 s19" style="top:452px;left:153px;width:122px;height:17px;">{{places_words}}</div>
+        <div class="s17 s18" style="top:470px;left:153px;width:121px;height:11px;">(словами)</div>
+        <div class="s8 s13" style="top:452px;left:274px;width:112px;height:17px;">, &nbsp;масою брутто, т</div>
+        <div class="s11" style="top:452px;left:395px;width:122px;height:18px;"></div>
+        <div class="s8 s19" style="top:452px;left:395px;width:122px;height:17px;">{{weight_brutto_words}}</div>
+        <div class="s17 s18" style="top:470px;left:395px;width:121px;height:11px;">(словами)</div>
+        <div class="s8 s13" style="top:452px;left:516px;width:172px;height:17px;">, отримав водій/експедитор</div>
+        <div class="s11" style="top:452px;left:690px;width:405px;height:18px;"></div>
+        <div class="s16 s19" style="top:452px;left:690px;width:405px;height:17px;">{{driver_fio}} / водій</div>
+        <div class="s14 s20" style="top:470px;left:690px;width:404px;height:20px;">(прізвище (за наявності), власне
+            ім&#39;я та по батькові (за наявності), унікальний номер запису в Єдиному державному демографічному реєстрі
+            (за наявності), посада, підпис)</div>
+        <div class="s8 s13" style="top:616px;left:57px;width:221px;height:18px;">Усього відпущено на загальну суму</div>
+        <div class="s11" style="top:616px;left:280px;width:507px;height:19px;"></div>
+        <div class="s21 s19" style="top:616px;left:280px;width:507px;height:18px;">згідно з умовами усного договору
+        </div>
+        <div class="s17 s18" style="top:635px;left:280px;width:506px;height:10px;">(словами, з урахуванням ПДВ)</div>
+        <div class="s8 s13" style="top:616px;left:786px;width:74px;height:18px;">, у т.ч. ПДВ</div>
+        <div class="s11" style="top:616px;left:862px;width:243px;height:19px;"></div>
+        <div class="s8 s13" style="top:616px;left:862px;width:241px;height:18px;"></div>
+        <div class="s8 s13" style="top:654px;left:57px;width:202px;height:18px;">Супровідні документи на вантаж</div>
+        <div class="s11" style="top:654px;left:265px;width:825px;height:19px;"></div>
+        <div class="s8 s13" style="top:654px;left:265px;width:823px;height:18px;"></div>
+        <div class="s11" style="top:682px;left:57px;width:1029px;height:19px;"></div>
+        <div class="s8 s13" style="top:682px;left:57px;width:1027px;height:18px;"></div>
+        <div class="s16 s13" style="top:112px;left:58px;width:208px;height:17px;">Місце складання: &nbsp; &nbsp; &nbsp;
+            смт.Клесів</div>
+        <div class="s8 s13" style="top:138px;left:57px;width:77px;height:18px;">Автомобіль</div>
+        <div class="s11" style="top:138px;left:140px;width:262px;height:19px;"></div>
+        <div class="s16 s13" style="top:138px;left:140px;width:260px;height:18px;">{{car_info}}</div>
+        <div class="s17 s18" style="top:157px;left:136px;width:261px;height:10px;">(марка, модель, тип, реєстраційний
+            номер)</div>
+        <div class="s8 s13" style="top:138px;left:779px;width:103px;height:18px;">Вид перевезень</div>
+        <div class="s11" style="top:138px;left:888px;width:202px;height:19px;"></div>
+        <div class="s16 s13" style="top:138px;left:888px;width:200px;height:18px;">вантажні</div>
+        <div class="s8 s13" style="top:138px;left:397px;width:119px;height:18px;">Причіп/напівпричіп</div>
+        <div class="s11" style="top:138px;left:518px;width:262px;height:19px;"></div>
+        <div class="s16 s13" style="top:138px;left:518px;width:260px;height:18px;">{{trailer_info}}</div>
+        <div class="s17 s18" style="top:157px;left:514px;width:265px;height:10px;">(марка, модель, тип, реєстраційний
+            номер)</div>
+        <div class="s8 s13" style="top:177px;left:57px;width:168px;height:17px;">Автомобільний перевізник</div>
+        <div class="s11" style="top:177px;left:227px;width:605px;height:18px;"></div>
+        <div class="s8 s13" style="top:177px;left:227px;width:603px;height:17px;">{{carrier_info}}</div>
+        <div class="s14 s15" style="top:195px;left:227px;width:602px;height:49px;">(повне найменування (прізвище (за
+            наявності), власне ім&#39;я та по батькові (за наявності), унікальний номер запису в Єдиному державному
+            демографічному реєстрі (за наявності), код платника податків згідно з Єдиним державним реєстром підприємств
+            та організацій України або податковий номер (реєстраційний номер облікової картки платника податків або
+            серія (за наявності) та номер паспорта громадянина України (для фізичних осіб, які через свої релігійні
+            переконання відмовляються від прийняття реєстраційного номера облікової картки платника податків та
+            повідомили про це відповідний контролюючий орган і мають відмітку в паспорті))</div>
+        <div class="s8 s13" style="top:177px;left:831px;width:36px;height:17px;">Водій</div>
+        <div class="s14 s15" style="top:195px;left:869px;width:214px;height:34px;">(прізвище (за наявності), власне
+            ім&#39;я та по батькові <br />(за наявності), унікальний номер запису в Єдиному державному демографічному
+            реєстрі (за наявності), <br />номер посвідчення водія)</div>
+        <div class="s11" style="top:177px;left:871px;width:228px;height:18px;"></div>
+        <div class="s16 s13" style="top:177px;left:871px;width:226px;height:17px;">{{driver_fio}} / {{driver_license}}</div>
+        <div class="s17 s18" style="top:551px;left:364px;width:82px;height:10px;">(довжина, м)</div>
+        <div class="s11" style="top:532px;left:463px;width:77px;height:19px;"></div>
+        <div class="s8 s19" style="top:532px;left:463px;width:77px;height:18px;">2,5</div>
+        <div class="s17 s18" style="top:551px;left:460px;width:82px;height:10px;">(ширина, м)</div>
+        <div class="s11" style="top:532px;left:568px;width:77px;height:19px;"></div>
+        <div class="s8 s19" style="top:532px;left:568px;width:77px;height:18px;">3,7</div>
+        <div class="s17 s18" style="top:551px;left:565px;width:83px;height:10px;">(висота, м)</div>
+        <div class="s11" style="top:532px;left:741px;width:346px;height:19px;"></div>
+        <div class="s8 s19" style="top:532px;left:741px;width:346px;height:18px;">{{tare_and_brutto}}</div>
+        <div class="s17 s18" style="top:551px;left:738px;width:352px;height:10px;">(загальна вага/маса з вантажем та
+            маса брутто, т)</div>
+        <div class="s8 s13" style="top:94px;left:952px;width:104px;height:18px;">Форма N 1-ТН</div>
+        <div class="s17 s22" style="top:36px;left:907px;width:166px;height:43px;">
+            <table>
+                <tr>
+                    <td>Додаток 7 <br />до Правил перевезень вантажів автомобільним транспортом в Україні <br />(пункт
+                        11,1 глави 11)
+            </table>
+        </div>
+    </div>
+    <div id="page2" class="page" style="position:relative;width:1123px;height:794px">
+        <div class="s8" style="top:23px;left:57px;width:1028px;height:748px;"></div>
+        <div class="s23" style="top:147px;left:57px;width:67px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:57px;width:67px;height:15px;">
+            <table>
+                <tr>
+                    <td>1
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:125px;width:316px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:125px;width:316px;height:15px;">
+            <table>
+                <tr>
+                    <td>2
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:442px;width:71px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:442px;width:71px;height:15px;">
+            <table>
+                <tr>
+                    <td>3
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:514px;width:63px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:514px;width:63px;height:15px;">
+            <table>
+                <tr>
+                    <td>4
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:578px;width:79px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:578px;width:79px;height:15px;">
+            <table>
+                <tr>
+                    <td>5
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:658px;width:78px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:658px;width:78px;height:15px;">
+            <table>
+                <tr>
+                    <td>6
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:839px;width:169px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:839px;width:169px;height:15px;">
+            <table>
+                <tr>
+                    <td>8
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:737px;width:101px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:737px;width:101px;height:15px;">
+            <table>
+                <tr>
+                    <td>7
+            </table>
+        </div>
+        <div class="s23" style="top:147px;left:1009px;width:75px;height:15px;"></div>
+        <div class="s24 s25" style="top:147px;left:1009px;width:75px;height:15px;">
+            <table>
+                <tr>
+                    <td>9
+            </table>
+        </div>
+        <div class="s26 s19" style="top:72px;left:57px;width:1028px;height:18px;">ВІДОМОСТІ ПРО ВАНТАЖ</div>
+        <div class="s23" style="top:102px;left:57px;width:67px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:57px;width:67px;height:44px;">
+            <table>
+                <tr>
+                    <td>№ з/п
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:125px;width:316px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:125px;width:316px;height:44px;">
+            <table>
+                <tr>
+                    <td>Найменування вантажу (номер контейнера), у разі перевезення небезпечних вантажів: клас
+                        небезпечних речовин, до якого віднесено вантаж
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:442px;width:71px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:442px;width:71px;height:44px;">
+            <table>
+                <tr>
+                    <td>Одиниця виміру
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:514px;width:63px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:514px;width:63px;height:44px;">
+            <table>
+                <tr>
+                    <td>Кількість місць
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:578px;width:79px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:578px;width:79px;height:44px;">
+            <table>
+                <tr>
+                    <td>Ціна без ПДВ за одиницю, грн
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:658px;width:78px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:658px;width:78px;height:44px;">
+            <table>
+                <tr>
+                    <td>Загальна сума з ПДВ, грн
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:839px;width:169px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:839px;width:169px;height:44px;">
+            <table>
+                <tr>
+                    <td>Документи з вантажем
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:737px;width:101px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:737px;width:101px;height:44px;">
+            <table>
+                <tr>
+                    <td>Вид пакування
+            </table>
+        </div>
+        <div class="s23" style="top:102px;left:1009px;width:75px;height:44px;"></div>
+        <div class="s24 s25" style="top:102px;left:1009px;width:75px;height:44px;">
+            <table>
+                <tr>
+                    <td>Маса<br />брутто, т
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:57px;width:67px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:57px;width:67px;height:52px;">
+            <table>
+                <tr>
+                    <td>1
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:125px;width:316px;height:52px;"></div>
+        <div class="s24 s27" style="top:163px;left:125px;width:314px;height:52px;">
+            <table>
+                <tr>
+                    <td>{{cargo_name}}
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:442px;width:71px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:442px;width:71px;height:52px;">
+            <table>
+                <tr>
+                    <td>т
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:514px;width:63px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:514px;width:63px;height:52px;">
+            <table>
+                <tr>
+                    <td>{{weight_netto}}
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:578px;width:79px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:578px;width:79px;height:52px;">
+            <table>
+                <tr>
+                    <td>згідно з умовами усного договору
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:658px;width:78px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:658px;width:78px;height:52px;">
+            <table>
+                <tr>
+                    <td>згідно з умовами усного договору
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:737px;width:101px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:737px;width:101px;height:52px;">
+            <table>
+                <tr>
+                    <td>{{packing_type}}
+            </table>
+        </div>
+        <div class="s23" style="top:163px;left:839px;width:169px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:839px;width:169px;height:52px;"></div>
+        <div class="s23" style="top:163px;left:1009px;width:75px;height:52px;"></div>
+        <div class="s24 s25" style="top:163px;left:1009px;width:75px;height:52px;">
+            <table>
+                <tr>
+                    <td>{{weight_brutto}}
+            </table>
+        </div>
+        <div class="s23" style="top:216px;left:57px;width:67px;height:14px;"></div>
+        <div class="s24 s25" style="top:216px;left:57px;width:67px;height:14px;">
+            <table>
+                <tr>
+                    <td>Всього:
+            </table>
+        </div>
+        <div class="s23" style="top:216px;left:125px;width:316px;height:14px;"></div>
+        <div class="s24 s27" style="top:216px;left:125px;width:314px;height:14px;"></div>
+        <div class="s23" style="top:216px;left:442px;width:71px;height:14px;"></div>
+        <div class="s24 s25" style="top:216px;left:442px;width:71px;height:14px;"></div>
+        <div class="s23" style="top:216px;left:514px;width:63px;height:14px;"></div>
+        <div class="s24 s25" style="top:216px;left:514px;width:63px;height:14px;">
+            <table>
+                <tr>
+                    <td>{{weight_netto}}
+            </table>
+        </div>
+        <div class="s23" style="top:216px;left:578px;width:79px;height:14px;"></div>
+        <div class="s24 s28" style="top:216px;left:578px;width:77px;height:14px;"></div>
+        <div class="s23" style="top:216px;left:658px;width:78px;height:14px;"></div>
+        <div class="s24 s25" style="top:216px;left:658px;width:78px;height:14px;">
+            <table>
+                <tr>
+                    <td>-
+            </table>
+        </div>
+        <div class="s23" style="top:216px;left:737px;width:101px;height:14px;"></div>
+        <div class="s24 s27" style="top:216px;left:737px;width:99px;height:14px;"></div>
+        <div class="s23" style="top:216px;left:839px;width:169px;height:14px;"></div>
+        <div class="s24 s27" style="top:216px;left:839px;width:167px;height:14px;"></div>
+        <div class="s23" style="top:216px;left:1009px;width:75px;height:14px;"></div>
+        <div class="s24 s25" style="top:216px;left:1009px;width:75px;height:14px;">
+            <table>
+                <tr>
+                    <td>{{weight_brutto}}
+            </table>
+        </div>
+        <div class="s8 s19" style="top:250px;left:57px;width:306px;height:17px;">Здав (відповідальна особа
+            вантажовідправника)</div>
+        <div class="s11" style="top:272px;left:57px;width:307px;height:19px;"></div>
+        <div class="s8 s13" style="top:272px;left:57px;width:305px;height:18px;">{{shipper_manager}}</div>
+        <div class="s8 s19" style="top:250px;left:646px;width:333px;height:17px;">Прийняв (відповідальна особа
+            вантажоодержувача)</div>
+        <div class="s17 s18" style="top:291px;left:57px;width:306px;height:26px;">(прізвище (за наявності), власне
+            ім&#39;я та по батькові (за наявності), посада, підпис)</div>
+        <div class="s11" style="top:272px;left:646px;width:334px;height:19px;"></div>
+        <div class="s8 s13" style="top:272px;left:646px;width:332px;height:18px;"></div>
+        <div class="s17 s18" style="top:291px;left:646px;width:333px;height:26px;">(прізвище (за наявності), власне
+            ім&#39;я та по батькові (за наявності), посада, підпис)</div>
+        <div class="s26 s19" style="top:321px;left:53px;width:1028px;height:18px;">ВАНТАЖНО-РОЗВАНТАЖУВАЛЬНІ ОПЕРАЦІЇ
+        </div>
+        <div class="s23" style="top:352px;left:57px;width:173px;height:29px;"></div>
+        <div class="s24 s25" style="top:352px;left:57px;width:173px;height:29px;">
+            <table>
+                <tr>
+                    <td>Операція
+            </table>
+        </div>
+        <div class="s23" style="top:352px;left:231px;width:172px;height:29px;"></div>
+        <div class="s24 s25" style="top:352px;left:231px;width:172px;height:29px;">
+            <table>
+                <tr>
+                    <td>Маса брутто, т
+            </table>
+        </div>
+        <div class="s23" style="top:352px;left:404px;width:506px;height:14px;"></div>
+        <div class="s24 s25" style="top:352px;left:404px;width:506px;height:14px;">
+            <table>
+                <tr>
+                    <td>Час (год., хв.)
+            </table>
+        </div>
+        <div class="s23" style="top:352px;left:911px;width:173px;height:29px;"></div>
+        <div class="s24 s25" style="top:352px;left:911px;width:173px;height:29px;">
+            <table>
+                <tr>
+                    <td>Підпис відповідальної особи
+            </table>
+        </div>
+        <div class="s23" style="top:382px;left:231px;width:172px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:231px;width:172px;height:14px;">
+            <table>
+                <tr>
+                    <td>2
+            </table>
+        </div>
+        <div class="s23" style="top:367px;left:404px;width:169px;height:14px;"></div>
+        <div class="s24 s25" style="top:367px;left:404px;width:169px;height:14px;">
+            <table>
+                <tr>
+                    <td>прибуття
+            </table>
+        </div>
+        <div class="s23" style="top:367px;left:574px;width:170px;height:14px;"></div>
+        <div class="s24 s25" style="top:367px;left:574px;width:170px;height:14px;">
+            <table>
+                <tr>
+                    <td>вибуття
+            </table>
+        </div>
+        <div class="s23" style="top:367px;left:745px;width:165px;height:14px;"></div>
+        <div class="s24 s25" style="top:367px;left:745px;width:165px;height:14px;">
+            <table>
+                <tr>
+                    <td>простою
+            </table>
+        </div>
+        <div class="s23" style="top:382px;left:404px;width:169px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:404px;width:169px;height:14px;">
+            <table>
+                <tr>
+                    <td>3
+            </table>
+        </div>
+        <div class="s23" style="top:382px;left:574px;width:170px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:574px;width:170px;height:14px;">
+            <table>
+                <tr>
+                    <td>4
+            </table>
+        </div>
+        <div class="s23" style="top:382px;left:745px;width:165px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:745px;width:165px;height:14px;">
+            <table>
+                <tr>
+                    <td>5
+            </table>
+        </div>
+        <div class="s23" style="top:397px;left:404px;width:169px;height:14px;"></div>
+        <div class="s24 s25" style="top:397px;left:404px;width:169px;height:14px;"></div>
+        <div class="s23" style="top:397px;left:574px;width:170px;height:14px;"></div>
+        <div class="s24 s25" style="top:397px;left:574px;width:170px;height:14px;"></div>
+        <div class="s23" style="top:397px;left:745px;width:165px;height:14px;"></div>
+        <div class="s24 s25" style="top:397px;left:745px;width:165px;height:14px;"></div>
+        <div class="s23" style="top:412px;left:404px;width:169px;height:14px;"></div>
+        <div class="s24 s25" style="top:412px;left:404px;width:169px;height:14px;"></div>
+        <div class="s23" style="top:412px;left:574px;width:170px;height:14px;"></div>
+        <div class="s24 s25" style="top:412px;left:574px;width:170px;height:14px;"></div>
+        <div class="s23" style="top:412px;left:745px;width:165px;height:14px;"></div>
+        <div class="s24 s25" style="top:412px;left:745px;width:165px;height:14px;"></div>
+        <div class="s23" style="top:382px;left:911px;width:173px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:911px;width:173px;height:14px;">
+            <table>
+                <tr>
+                    <td>6
+            </table>
+        </div>
+        <div class="s23" style="top:397px;left:911px;width:173px;height:14px;"></div>
+        <div class="s24 s25" style="top:397px;left:911px;width:173px;height:14px;"></div>
+        <div class="s23" style="top:412px;left:911px;width:173px;height:14px;"></div>
+        <div class="s24 s25" style="top:412px;left:911px;width:173px;height:14px;"></div>
+        <div class="s23" style="top:382px;left:57px;width:173px;height:14px;"></div>
+        <div class="s24 s25" style="top:382px;left:57px;width:173px;height:14px;">
+            <table>
+                <tr>
+                    <td>1
+            </table>
+        </div>
+        <div class="s23" style="top:397px;left:57px;width:173px;height:14px;"></div>
+        <div class="s24 s27" style="top:397px;left:57px;width:171px;height:14px;">
+            <table>
+                <tr>
+                    <td>Навантаження
+            </table>
+        </div>
+        <div class="s23" style="top:412px;left:57px;width:173px;height:14px;"></div>
+        <div class="s24 s27" style="top:412px;left:57px;width:171px;height:14px;">
+            <table>
+                <tr>
+                    <td>Розвантаження
+            </table>
+        </div>
+        <div class="s23" style="top:397px;left:231px;width:172px;height:14px;"></div>
+        <div class="s24 s25" style="top:397px;left:231px;width:172px;height:14px;"></div>
+        <div class="s23" style="top:412px;left:231px;width:172px;height:14px;"></div>
+        <div class="s24 s25" style="top:412px;left:231px;width:172px;height:14px;"></div>
+    </div>
+    <style>
+        div,
+        img,
+        table {
+            position: absolute;
+        }
+
+        div,
+        td {
+            overflow: hidden;
+        }
+
+        tr,
+        td,
+        table,
+        tbody {
+            text-decoration: inherit;
+            vertical-align: inherit;
+        }
+
+        table {
+            width: 100%;
+            height: 100%;
+            border-spacing: 0;
+            word-break: break-all;
+        }
+
+        .nav {
+            font: bold 12px Calibri;
+            margin: 1em;
+        }
+
+        .nav a {
+            text-decoration: none;
+            margin-right: 1em;
+            color: black;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .page {
+            border: 1mm solid orange;
+            margin: 5mm;
+            box-shadow: 3mm 3mm 3mm gray;
+            -webkit-box-shadow: 3mm 3mm 3mm gray;
+            -moz-box-shadow: 3mm 3mm 3mm gray;
+            -ms-box-shadow: 3mm 3mm 3mm gray;
+            -o-box-shadow: 3mm 3mm 3mm gray;
+            border-radius: 2mm;
+            -webkit-border-radius: 2mm;
+            -moz-border-radius: 2mm;
+            -ms-border-radius: 2mm;
+            -o-border-radius: 2mm;
+        }
+
+        .s8 {
+            color: black;
+            font: 10pt Arial;
+        }
+
+        .s9 {
+            color: black;
+            font: bold 12pt Arial;
+        }
+
+        .s10 {
+            text-align: center;
+            vertical-align: middle;
+            line-height: 18px;
+        }
+
+        .s11 {
+            border-bottom: 1px solid black;
+            z-index: 2;
+        }
+
+        .s12 {
+            vertical-align: middle;
+            line-height: 18px;
+            padding-left: 2px;
+        }
+
+        .s13 {
+            vertical-align: top;
+            line-height: 15px;
+            padding-top: 1px;
+            padding-left: 2px;
+        }
+
+        .s14 {
+            color: black;
+            font: italic 5pt Arial;
+        }
+
+        .s15 {
+            vertical-align: top;
+            line-height: 9px;
+            padding-top: 1px;
+            padding-left: 2px;
+        }
+
+        .s16 {
+            color: black;
+            font: italic 10pt Arial;
+        }
+
+        .s17 {
+            color: black;
+            line-height: 110% !important;
+            font: 7pt Arial;
+        }
+
+        .s18 {
+            text-align: center;
+            vertical-align: top;
+            line-height: 11px;
+            padding-top: 1px;
+        }
+
+        .s19 {
+            text-align: center;
+            vertical-align: top;
+            line-height: 15px;
+            padding-top: 1px;
+        }
+
+        .s20 {
+            text-align: center;
+            vertical-align: top;
+            line-height: 9px;
+            padding-top: 1px;
+        }
+
+        .s21 {
+            color: black;
+            font: bold italic 10pt Arial;
+        }
+
+        .s22 {
+            vertical-align: middle;
+            line-height: 11px;
+            padding-left: 2px;
+        }
+
+        .s23 {
+            border: 1px solid black;
+            z-index: 2;
+        }
+
+        .s24 {
+            color: black;
+            line-height: 110% !important;
+            font: 8pt Arial;
+        }
+
+        .s25 {
+            text-align: center;
+            vertical-align: middle;
+            line-height: 13px;
+        }
+
+        .s26 {
+            color: black;
+            font: bold 10pt Arial;
+        }
+
+        .s27 {
+            vertical-align: middle;
+            line-height: 13px;
+            padding-left: 2px;
+        }
+
+        .s28 {
+            text-align: right;
+            vertical-align: middle;
+            line-height: 13px;
+            padding-right: 2px;
+        }
+    </style>
+</body>
+
+</html>

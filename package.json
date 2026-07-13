@@ -1,0 +1,33 @@
+{
+  "name": "ttn-bot-telegram",
+  "version": "1.0.0",
+  "description": "Voice-controlled Telegram bot for TTN generation via Groq and Puppeteer",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andriy323/ttn-bot-telegram.git"
+  },
+  "keywords": [],
+  "author": "Andriy",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Andriy323/ttn-bot-telegram/issues"
+  },
+  "homepage": "https://github.com/Andriy323/ttn-bot-telegram#readme",
+  "dependencies": {
+    "@grammyjs/conversations": "^2.1.1",
+    "axios": "^1.7.2",
+    "dotenv": "^17.4.2",
+    "grammy": "^1.44.0",
+    "groq-sdk": "^0.5.0",
+    "knex": "^3.3.0",
+    "puppeteer": "^25.3.0",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {}
+}
