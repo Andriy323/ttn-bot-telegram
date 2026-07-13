@@ -1,0 +1,17 @@
+name: ttn-bot
+
+services:
+  bot:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./.database:/usr/src/app/.database
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - sites-network
+
+networks:
+  sites-network:
+    external: true
