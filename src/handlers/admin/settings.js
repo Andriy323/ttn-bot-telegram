@@ -86,6 +86,16 @@ async function adminAddConv(conversation, ctx) {
 settingsRouter.use(createConversation(adminAddConv));
 
 settingsRouter.callbackQuery("admin_admin_add", async (ctx) => {
+  const superAdminId = process.env.SUPER_ADMIN_ID?.trim();
+  const userId = ctx.from?.id?.toString();
+  
+  if (userId !== superAdminId) {
+    return ctx.answerCallbackQuery({ 
+      text: "⛔ Тільки головний адміністратор може додавати нових адмінів.", 
+      show_alert: true 
+    });
+  }
+
   await ctx.deleteMessage();
   await ctx.conversation.enter("adminAddConv");
 });

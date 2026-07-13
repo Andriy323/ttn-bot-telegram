@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Composer, Keyboard, InputFile } from 'grammy';
+import { Composer, Keyboard, InputFile, InlineKeyboard } from 'grammy';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
@@ -18,18 +18,61 @@ const __dirname = path.dirname(__filename);
 
 export const userRouter = new Composer();
 
-userRouter.command("start", async (ctx) => {
-  let reply_markup = new Keyboard().text("❓ Допомога").resized().persistent();
+userRouter.use(async (ctx, next) => {
+  // Дозволяємо команду /start та кнопку відправки ID для всіх
+  if (ctx.message?.text?.startsWith('/start')) return next();
+  if (ctx.callbackQuery?.data === "send_id_to_admin") return next();
 
-  if (await isAdmin(ctx)) {
-    reply_markup = new Keyboard().text("⚙️ Адмін-панель").text("❓ Допомога").resized().persistent();
+  // Всі інші дії блокуємо для не-адмінів (бот буде просто ігнорувати повідомлення)
+  if (!(await isAdmin(ctx))) {
+    if (ctx.callbackQuery) {
+      return ctx.answerCallbackQuery({ text: "⛔ Немає доступу.", show_alert: true });
+    }
+    return;
   }
+  
+  return next();
+});
+
+userRouter.command("start", async (ctx) => {
+  let isAdminUser = await isAdmin(ctx);
+
+  if (!isAdminUser) {
+    const inlineKb = new InlineKeyboard().text("🆔 Надіслати мій ID адміну", "send_id_to_admin");
+    return ctx.reply("⛔ У вас немає доступу до цього бота.\n\nЩоб отримати права, надішліть свій запит головному адміну:", { reply_markup: inlineKb });
+  }
+
+  const reply_markup = new Keyboard().text("⚙️ Адмін-панель").text("❓ Допомога").resized().persistent();
 
   const welcomeText = "👋 Привіт! Я твій голосовий логіст ТТН.\n\n" +
                       "🎤 **Натисни та утримуй мікрофон, щоб надиктувати рейс.**\n\n" +
                       "💡 *Приклад:* _«Іваненко,  22.5 тон,  5-20»_";
 
   await ctx.reply(welcomeText, { reply_markup, parse_mode: "Markdown" });
+});
+
+userRouter.callbackQuery("send_id_to_admin", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const superAdminId = process.env.SUPER_ADMIN_ID?.trim();
+  
+  if (!superAdminId) {
+    return ctx.editMessageText("❌ Помилка: Головний адмін не налаштований у системі.");
+  }
+  
+  const user = ctx.from;
+  const userInfo = `🆕 **Запит на додавання в адміни!**\n\n` +
+                   `👤 **Ім'я:** ${user.first_name || ''} ${user.last_name || ''}\n` +
+                   `🔗 **Username:** ${user.username ? '@' + user.username : 'немає'}\n` +
+                   `🆔 **Telegram ID:** \`${user.id}\`\n\n` +
+                   `_Щоб додати його, перейдіть в Адмін-панель -> Адміністратори -> Додати._`;
+                   
+  try {
+    await ctx.api.sendMessage(superAdminId, userInfo, { parse_mode: "Markdown" });
+    await ctx.editMessageText("✅ Ваш ID успішно надіслано головному адміністратору!");
+  } catch (err) {
+    console.error("Не вдалося надіслати адміну:", err);
+    await ctx.editMessageText("❌ Не вдалося надіслати повідомлення. Можливо, адмін ще не запускав бота.");
+  }
 });
 
 userRouter.hears("⚙️ Адмін-панель", async (ctx) => {
