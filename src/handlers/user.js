@@ -4,11 +4,23 @@ import { fileURLToPath } from 'url';
 import { Composer, Keyboard, InlineKeyboard } from 'grammy';
 import dotenv from 'dotenv';
 
-import { processTtnText, generateAndSendTtnPdf } from '../services/ttn.js';
+import { 
+  processTtnText, 
+  generateAndSendTtnPdf,
+  getEditMenuKeyboard,
+  sendOrEditPreview,
+  showDriversList,
+  showVehiclesList,
+  showShippersList,
+  showFractionsList,
+  showDestinationsList
+} from '../services/ttn.js';
 import { transcribeAudio } from '../services/ai.js';
 import { isAdmin, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './admin/utils.js';
 import { adminAuthMiddleware } from '../middlewares/auth.js';
 import { downloadVoiceFile } from '../services/telegramFiles.js';
+import { createConversation } from '@grammyjs/conversations';
+import { db } from '../config/db.js';
 
 dotenv.config();
 
@@ -19,6 +31,9 @@ export const userRouter = new Composer();
 
 // Використовуємо middleware для перевірки доступу
 userRouter.use(adminAuthMiddleware);
+
+// Реєструємо conversation для редагування ваги
+userRouter.use(createConversation(editTtnWeightConv));
 
 userRouter.command("start", async (ctx) => {
   let isAdminUser = await isAdmin(ctx);
@@ -123,5 +138,144 @@ userRouter.callbackQuery("ttn_generate_no", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }).catch(() => {});
   ctx.session.pendingTtnData = null;
+  ctx.session.pendingTtn = null;
   await ctx.reply("🚫 Генерацію ТТН відмінено.");
 });
+
+// ==========================================
+// ✏️ ІНТЕРАКТИВНЕ РЕДАГУВАННЯ ПОЛІВ ТТН
+// ==========================================
+
+// 1. Головне меню редагування ТТН
+userRouter.callbackQuery("ttn_edit_main", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.editMessageText("✏️ **Оберіть поле для редагування:**", {
+    reply_markup: getEditMenuKeyboard(),
+    parse_mode: "Markdown"
+  });
+});
+
+// 2. Назад до підтвердження
+userRouter.callbackQuery("ttn_edit_back", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await sendOrEditPreview(ctx);
+});
+
+// 3. Перехід до списків довідників
+userRouter.callbackQuery("ttn_edit_field_driver", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showDriversList(ctx);
+});
+
+userRouter.callbackQuery("ttn_edit_field_vehicle", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showVehiclesList(ctx);
+});
+
+userRouter.callbackQuery("ttn_edit_field_shipper", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showShippersList(ctx);
+});
+
+userRouter.callbackQuery("ttn_edit_field_fraction", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showFractionsList(ctx);
+});
+
+userRouter.callbackQuery("ttn_edit_field_destination", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showDestinationsList(ctx);
+});
+
+// 4. Початок розмови редагування ваги
+userRouter.callbackQuery("ttn_edit_field_weight", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.conversation.enter("editTtnWeightConv");
+});
+
+// 5. Встановлення вибраного значення з кнопок списку
+userRouter.callbackQuery(/ttn_set_driver_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const id = parseInt(ctx.match[1], 10);
+  ctx.session.pendingTtn.driver_id = id;
+  
+  // Автоматично ставимо дефолтне авто водія, якщо воно є
+  try {
+    const dbDriver = await db('drivers').where({ id }).first();
+    if (dbDriver && dbDriver.default_vehicle_id) {
+      ctx.session.pendingTtn.vehicle_id = dbDriver.default_vehicle_id;
+    }
+  } catch (err) {
+    console.error("Помилка призначення дефолтного авто:", err);
+  }
+  
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery(/ttn_set_vehicle_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const id = parseInt(ctx.match[1], 10);
+  ctx.session.pendingTtn.vehicle_id = id;
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery(/ttn_set_shipper_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const id = parseInt(ctx.match[1], 10);
+  ctx.session.pendingTtn.shipper_id = id;
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery(/ttn_set_fraction_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const id = parseInt(ctx.match[1], 10);
+  ctx.session.pendingTtn.fraction_id = id;
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery(/ttn_set_destination_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const id = parseInt(ctx.match[1], 10);
+  ctx.session.pendingTtn.destination_id = id;
+  await sendOrEditPreview(ctx);
+});
+
+// ==========================================
+// ⚖️ CONVERSATION ДЛЯ РЕДАГУВАННЯ ВАГИ
+// ==========================================
+export async function editTtnWeightConv(conversation, ctx) {
+  await ctx.deleteMessage().catch(() => {});
+  
+  const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_weight_cancel");
+  const promptMsg = await ctx.reply("⚖️ **Введіть нове значення чистої ваги (нетто) в тоннах (наприклад: 24.8 або 24):**", { reply_markup: keyboard, parse_mode: "Markdown" });
+  
+  while (true) {
+    const responseCtx = await conversation.waitFor(['message:text', 'callback_query:data']);
+    
+    if (responseCtx.callbackQuery?.data === 'ttn_edit_weight_cancel') {
+      await responseCtx.answerCallbackQuery();
+      await ctx.api.deleteMessage(promptMsg.chat.id, promptMsg.message_id).catch(() => {});
+      await responseCtx.deleteMessage().catch(() => {});
+      
+      await conversation.external(() => sendOrEditPreview(ctx));
+      return;
+    }
+    
+    if (responseCtx.message?.text) {
+      const textVal = responseCtx.message.text.trim().replace(',', '.');
+      const weight = parseFloat(textVal);
+      
+      if (isNaN(weight) || weight <= 0) {
+        await responseCtx.reply("❌ Неправильний формат числа. Будь ласка, введіть число більше 0 (наприклад: 24.5):");
+        continue;
+      }
+      
+      await ctx.api.deleteMessage(promptMsg.chat.id, promptMsg.message_id).catch(() => {});
+      await responseCtx.deleteMessage().catch(() => {});
+      
+      ctx.session.pendingTtn.weight_netto = weight;
+      await conversation.external(() => sendOrEditPreview(ctx));
+      return;
+    }
+  }
+}
