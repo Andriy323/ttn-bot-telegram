@@ -1,6 +1,13 @@
-import { InlineKeyboard } from 'grammy';
-import { db } from '../config/db.js';
+import { InlineKeyboard, InputFile } from 'grammy';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { db, generateNextTtnNumber } from '../config/db.js';
 import { parseTtnDataFromText } from './ai.js';
+import { generateTtnPdf } from './pdf.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Загальні незмінні поля для бланка ТТН
 export const staticPresets = {
@@ -16,18 +23,30 @@ export async function processTtnText(ctx, textInput) {
     // 3. Структурування даних  в JSON
     const parsed = await parseTtnDataFromText(textInput);
 
+    const missingFields = [];
+    if (!parsed.driver_name) missingFields.push("Водій");
+    if (!parsed.shipper_name) missingFields.push("Вантажовідправник");
+    if (!parsed.cargo_fraction) missingFields.push("Вантаж/Фракція");
+    if (!parsed.unloading_point) missingFields.push("Пункт розвантаження");
+    if (!parsed.weight_netto) missingFields.push("Вага (нетто)");
+    
+    if (missingFields.length > 0) {
+      return await ctx.reply(`⚠️ **Не вистачає даних для ТТН!**\n\nВи не назвали:\n${missingFields.map(m => `— ${m}`).join('\n')}\n\n🎤 Будь ласка, надиктуйте рейс ще раз, вказавши всі відсутні дані.`, { parse_mode: "Markdown" });
+    }
+
     // 4. ПІДБІР ДАНИХ ІЗ БАЗИ ДАНИХ
     const drivers = await db('drivers').select('*');
     const vehicles = await db('vehicles').select('*');
     const shippers = await db('shippers').select('*');
     const fractions = await db('fractions').select('*');
+    const destinations = await db('destinations').select('*');
 
     // Шукаємо водія
-    const driverKey = parsed.driver_name ? parsed.driver_name.toLowerCase() : "гриша";
-    let dbDriver = drivers.find(d => d.name_key && d.name_key.toLowerCase().includes(driverKey));
-    if (!dbDriver) dbDriver = drivers.find(d => d.name_key && d.name_key.toLowerCase().includes('гриша'));
-    if (!dbDriver) dbDriver = drivers[0];
-    if (!dbDriver) return await ctx.reply("❌ Помилка: У базі даних немає жодного водія! Додайте їх в адмінці.");
+    const driverKey = parsed.driver_name.toLowerCase();
+    const dbDriver = drivers.find(d => d.name_key && d.name_key.toLowerCase().includes(driverKey));
+    if (!dbDriver) {
+      return await ctx.reply(`❌ Водія "${parsed.driver_name}" не знайдено в базі.`);
+    }
 
     // Шукаємо машину
     let dbVehicle;
@@ -38,34 +57,39 @@ export async function processTtnText(ctx, textInput) {
     if (!dbVehicle && dbDriver.default_vehicle_id) {
       dbVehicle = vehicles.find(v => v.id === dbDriver.default_vehicle_id);
     }
-    if (!dbVehicle) dbVehicle = vehicles[0];
-    if (!dbVehicle) return await ctx.reply("❌ Помилка: У базі даних немає жодного автомобіля! Додайте їх в адмінці.");
+    if (!dbVehicle) {
+      return await ctx.reply(`❌ Автомобіль не вказано, і за водієм "${dbDriver.fio}" не закріплено стандартне авто. Додайте авто в адмінці або надиктуйте його номер.`);
+    }
 
     // Шукаємо вантажовідправника
-    const shipperKey = parsed.shipper_name ? parsed.shipper_name.toLowerCase() : "понедільник";
-    let dbShipper = shippers.find(s => s.shipper_key && s.shipper_key.toLowerCase().includes(shipperKey));
-    if (!dbShipper) dbShipper = shippers.find(s => s.shipper_key && s.shipper_key.toLowerCase().includes('понедільник'));
-    if (!dbShipper) dbShipper = shippers[0];
-    if (!dbShipper) return await ctx.reply("❌ Помилка: У базі даних немає жодного відправника! Додайте їх в адмінці.");
+    const shipperKey = parsed.shipper_name.toLowerCase();
+    const dbShipper = shippers.find(s => s.shipper_key && s.shipper_key.toLowerCase().includes(shipperKey));
+    if (!dbShipper) {
+      return await ctx.reply(`❌ Вантажовідправника "${parsed.shipper_name}" не знайдено в базі.`);
+    }
 
     // Шукаємо фракцію
-    const fractionKey = parsed.cargo_fraction ? parsed.cargo_fraction.toLowerCase() : "5-20";
-    let dbFraction = fractions.find(f => f.fraction_key && f.fraction_key.toLowerCase().includes(fractionKey));
-    if (!dbFraction) dbFraction = fractions.find(f => f.fraction_key && f.fraction_key.toLowerCase().includes('5-20'));
-    if (!dbFraction) dbFraction = fractions[0];
-    if (!dbFraction) return await ctx.reply("❌ Помилка: У базі даних немає жодної фракції! Додайте їх в адмінці.");
+    const fractionKey = parsed.cargo_fraction.toLowerCase();
+    const dbFraction = fractions.find(f => f.fraction_key && f.fraction_key.toLowerCase().includes(fractionKey));
+    if (!dbFraction) {
+      return await ctx.reply(`❌ Фракцію/вантаж "${parsed.cargo_fraction}" не знайдено в базі.`);
+    }
 
     // Шукаємо пункт розвантаження
-    const destinations = await db('destinations').select('*');
-    const destKey = parsed.unloading_point ? parsed.unloading_point.toLowerCase() : "ратне";
-    let dbDest = destinations.find(d => d.destination_key && d.destination_key.toLowerCase().includes(destKey));
-    if (!dbDest) dbDest = destinations.find(d => d.destination_key && d.destination_key.toLowerCase().includes('ратне'));
-    if (!dbDest) dbDest = destinations[0];
-    if (!dbDest) return await ctx.reply("❌ Помилка: У базі даних немає жодного пункту розвантаження! Додайте їх в адмінці.");
+    const destKey = parsed.unloading_point.toLowerCase();
+    const dbDest = destinations.find(d => d.destination_key && d.destination_key.toLowerCase().includes(destKey));
+    if (!dbDest) {
+      return await ctx.reply(`❌ Пункт розвантаження "${parsed.unloading_point}" не знайдено в базі.`);
+    }
 
     // Розрахунок дати складання документа
-    const date = new Date();
-    if (parsed.date_type === "завтра") date.setDate(date.getDate() + 1);
+    let date = new Date();
+    if (parsed.target_date) {
+      const parsedDate = new Date(parsed.target_date);
+      if (!isNaN(parsedDate.getTime())) {
+        date = parsedDate;
+      }
+    }
     const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
     const formattedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} р.`;
 
@@ -126,5 +150,37 @@ export async function processTtnText(ctx, textInput) {
   } catch (err) {
     console.error("Помилка обробки тексту:", err);
     await ctx.reply("❌ Не вдалося обробити запит та згенерувати ТТН.");
+  }
+}
+
+export async function generateAndSendTtnPdf(ctx) {
+  const ttnData = ctx.session.pendingTtnData;
+  if (!ttnData) {
+    return ctx.reply("❌ Помилка: дані ТТН не знайдено або сесія застаріла.");
+  }
+  
+  await ctx.reply("⏳ Реквізити підтверджено. Генерую бланк PDF...");
+
+  try {
+    const ttnCounters = await generateNextTtnNumber();
+    ttnData.ttn_number = ttnCounters.full;
+
+    const pdfBuffer = await generateTtnPdf(ttnData);
+    const pdfFilename = `TTN_No_${ttnCounters.full.replace('/', '_')}.pdf`;
+    const pdfPath = path.join(__dirname, pdfFilename);
+    await fs.promises.writeFile(pdfPath, pdfBuffer);
+
+    await ctx.replyWithDocument(
+      new InputFile(pdfPath),
+      { caption: `✅ **ТТН № ${ttnCounters.full}** успішно сформована!`, parse_mode: "Markdown" }
+    );
+    
+    // Асинхронне видалення файлу
+    await fs.promises.unlink(pdfPath).catch(console.error);
+
+    ctx.session.pendingTtnData = null;
+  } catch (err) {
+    console.error("Помилка генерації:", err);
+    await ctx.reply("❌ Не вдалося згенерувати ТТН. Перевір логи сервера.");
   }
 }
