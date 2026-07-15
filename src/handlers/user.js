@@ -121,7 +121,7 @@ userRouter.hears("❓ Допомога", async (ctx) => {
 
 userRouter.hears("💡 Шпаргалка", async (ctx) => {
   const popupText = `🎤 **Приклад фрази:**\n` +
-                    `_"Петро, відправник Вова,  5-20, на Рівне, вага 24.5"_\n\n` +
+                    `_"Петро, відправник Вова, 5-20, на Рівне, вага 24.5"_\n\n` +
                     `📋 **Шаблон обов'язкових параметрів ТТН:**\n` +
                     `1. 👤 **Водій** (наприклад: Петро)\n` +
                     `2. 🚗 **Авто** (наприклад: 8025 — необов'язково, якщо є дефолтне)\n` +
@@ -305,6 +305,7 @@ export async function editTtnWeightConv(conversation, ctx) {
       await ctx.api.deleteMessage(promptMsg.chat.id, promptMsg.message_id).catch(() => {});
       await responseCtx.deleteMessage().catch(() => {});
       
+      ctx.callbackQuery = undefined;
       await conversation.external(() => sendOrEditPreview(ctx));
       return;
     }
@@ -322,6 +323,7 @@ export async function editTtnWeightConv(conversation, ctx) {
       await responseCtx.deleteMessage().catch(() => {});
       
       ctx.session.pendingTtn.weight_netto = weight;
+      ctx.callbackQuery = undefined;
       await conversation.external(() => sendOrEditPreview(ctx));
       return;
     }
