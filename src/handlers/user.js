@@ -20,7 +20,7 @@ import { transcribeAudio } from '../services/ai.js';
 import { isAdmin, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './admin/utils.js';
 import { adminAuthMiddleware } from '../middlewares/auth.js';
 import { downloadVoiceFile } from '../services/telegramFiles.js';
-import { createConversation } from '@grammyjs/conversations';
+
 import { db } from '../config/db.js';
 
 dotenv.config();
@@ -33,10 +33,12 @@ export const userRouter = new Composer();
 // Використовуємо middleware для перевірки доступу
 userRouter.use(adminAuthMiddleware);
 
-// Реєструємо conversation для редагування ваги
-userRouter.use(createConversation(editTtnWeightConv));
+
 
 userRouter.command("start", async (ctx) => {
+  // Скидаємо стан очікування
+  ctx.session.awaitingWeight = false;
+  
   let isAdminUser = await isAdmin(ctx);
 
   if (!isAdminUser) {
@@ -157,6 +159,29 @@ userRouter.on("message:text", async (ctx, next) => {
   if (text.includes("Адмін-панель")) return next();
   if (text.includes("Допомога")) return next();
 
+  // Обробка введення ваги (сесійна машина станів)
+  if (ctx.session.awaitingWeight) {
+    const textVal = text.trim().replace(',', '.');
+    const weight = parseFloat(textVal);
+
+    if (isNaN(weight) || weight <= 0) {
+      await ctx.reply("❌ Неправильний формат числа. Будь ласка, введіть число більше 0 (наприклад: 24.5):");
+      return;
+    }
+
+    // Видаляємо повідомлення-запит та відповідь користувача
+    if (ctx.session.weightPromptMsgId) {
+      await ctx.api.deleteMessage(ctx.chat.id, ctx.session.weightPromptMsgId).catch(() => {});
+    }
+    await ctx.deleteMessage().catch(() => {});
+
+    ctx.session.awaitingWeight = false;
+    ctx.session.weightPromptMsgId = null;
+    ctx.session.pendingTtn.weight_netto = weight;
+    await sendOrEditPreview(ctx);
+    return;
+  }
+
   await ctx.reply("📝 Текстовий запит отримано! Опрацьовую... 🚀");
   const dbContext = await getDbContext();
   await processTtnText(ctx, text, dbContext);
@@ -235,10 +260,24 @@ userRouter.callbackQuery("ttn_edit_field_destination", async (ctx) => {
   await showDestinationsList(ctx);
 });
 
-// 4. Початок розмови редагування ваги
+// 4. Редагування ваги (сесійна машина станів)
 userRouter.callbackQuery("ttn_edit_field_weight", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.conversation.enter("editTtnWeightConv");
+  await ctx.deleteMessage().catch(() => {});
+
+  const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_weight_cancel");
+  const promptMsg = await ctx.reply("⚖️ **Введіть нове значення чистої ваги (нетто) в тоннах (наприклад: 24.8 або 24):**", { reply_markup: keyboard, parse_mode: "Markdown" });
+
+  ctx.session.awaitingWeight = true;
+  ctx.session.weightPromptMsgId = promptMsg.message_id;
+});
+
+userRouter.callbackQuery("ttn_edit_weight_cancel", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  ctx.session.awaitingWeight = false;
+  ctx.session.weightPromptMsgId = null;
+  await ctx.deleteMessage().catch(() => {});
+  await sendOrEditPreview(ctx);
 });
 
 // 5. Встановлення вибраного значення з кнопок списку
@@ -288,44 +327,3 @@ userRouter.callbackQuery(/ttn_set_destination_(\d+)/, async (ctx) => {
   await sendOrEditPreview(ctx);
 });
 
-// ==========================================
-// ⚖️ CONVERSATION ДЛЯ РЕДАГУВАННЯ ВАГИ
-// ==========================================
-export async function editTtnWeightConv(conversation, ctx) {
-  await ctx.deleteMessage().catch(() => {});
-  
-  const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_weight_cancel");
-  const promptMsg = await ctx.reply("⚖️ **Введіть нове значення чистої ваги (нетто) в тоннах (наприклад: 24.8 або 24):**", { reply_markup: keyboard, parse_mode: "Markdown" });
-  
-  while (true) {
-    const responseCtx = await conversation.waitFor(['message:text', 'callback_query:data']);
-    
-    if (responseCtx.callbackQuery?.data === 'ttn_edit_weight_cancel') {
-      await responseCtx.answerCallbackQuery();
-      await ctx.api.deleteMessage(promptMsg.chat.id, promptMsg.message_id).catch(() => {});
-      await responseCtx.deleteMessage().catch(() => {});
-      
-      ctx.callbackQuery = undefined;
-      await conversation.external(() => sendOrEditPreview(ctx));
-      return;
-    }
-    
-    if (responseCtx.message?.text) {
-      const textVal = responseCtx.message.text.trim().replace(',', '.');
-      const weight = parseFloat(textVal);
-      
-      if (isNaN(weight) || weight <= 0) {
-        await responseCtx.reply("❌ Неправильний формат числа. Будь ласка, введіть число більше 0 (наприклад: 24.5):");
-        continue;
-      }
-      
-      await ctx.api.deleteMessage(promptMsg.chat.id, promptMsg.message_id).catch(() => {});
-      await responseCtx.deleteMessage().catch(() => {});
-      
-      ctx.session.pendingTtn.weight_netto = weight;
-      ctx.callbackQuery = undefined;
-      await conversation.external(() => sendOrEditPreview(ctx));
-      return;
-    }
-  }
-}

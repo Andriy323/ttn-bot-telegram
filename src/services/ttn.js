@@ -231,7 +231,7 @@ export function getPreviewKeyboard(isComplete) {
   return keyboard;
 }
 
-export async function sendOrEditPreview(ctx) {
+export async function sendOrEditPreview(ctx, forceReply = false) {
   try {
     const details = await rebuildPendingTtn(ctx);
     if (!details) {
@@ -239,7 +239,7 @@ export async function sendOrEditPreview(ctx) {
     }
     const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.isComplete);
     const reply_markup = getPreviewKeyboard(details.isComplete);
-    if (ctx.callbackQuery) {
+    if (ctx.callbackQuery && !forceReply) {
       await ctx.editMessageText(text, { reply_markup, parse_mode: "Markdown" }).catch(() => {});
     } else {
       await ctx.reply(text, { reply_markup, parse_mode: "Markdown" });
