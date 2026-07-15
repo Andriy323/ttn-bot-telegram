@@ -18,21 +18,36 @@ export const staticPresets = {
   places_words: 'одне'
 };
 
-export async function processTtnText(ctx, textInput) {
-  try {
-    // 3. Структурування даних в JSON
-    const parsed = await parseTtnDataFromText(textInput);
+export async function getDbContext() {
+  const drivers = await db('drivers').select('name_key', 'fio');
+  const vehicles = await db('vehicles').select('plate_number', 'car_info');
+  const shippers = await db('shippers').select('shipper_key', 'manager');
+  const fractions = await db('fractions').select('fraction_key', 'name');
+  const destinations = await db('destinations').select('destination_key', 'name');
 
-    const missingFields = [];
-    if (!parsed.driver_name) missingFields.push("Водій");
-    if (!parsed.shipper_name) missingFields.push("Вантажовідправник");
-    if (!parsed.cargo_fraction) missingFields.push("Вантаж/Фракція");
-    if (!parsed.unloading_point) missingFields.push("Пункт розвантаження");
-    if (!parsed.weight_netto) missingFields.push("Вага (нетто)");
-    
-    if (missingFields.length > 0) {
-      return await ctx.reply(`⚠️ **Не вистачає даних для ТТН!**\n\nВи не назвали:\n${missingFields.map(m => `— ${m}`).join('\n')}\n\n🎤 Будь ласка, надиктуйте рейс ще раз, вказавши всі відсутні дані.`, { parse_mode: "Markdown" });
+  const driverNames = drivers.flatMap(d => [d.name_key, d.fio]).filter(Boolean);
+  const vehicleNames = vehicles.flatMap(v => [v.plate_number, v.car_info]).filter(Boolean);
+  const shipperNames = shippers.flatMap(s => [s.shipper_key, s.manager]).filter(Boolean);
+  const fractionNames = fractions.flatMap(f => [f.fraction_key, f.name]).filter(Boolean);
+  const destinationNames = destinations.flatMap(d => [d.destination_key, d.name]).filter(Boolean);
+
+  return {
+    drivers: [...new Set(driverNames)],
+    vehicles: [...new Set(vehicleNames)],
+    shippers: [...new Set(shipperNames)],
+    fractions: [...new Set(fractionNames)],
+    destinations: [...new Set(destinationNames)],
+  };
+}
+
+export async function processTtnText(ctx, textInput, dbContext = null) {
+  try {
+    if (!dbContext) {
+      dbContext = await getDbContext();
     }
+    
+    // 3. Структурування даних в JSON
+    const parsed = await parseTtnDataFromText(textInput, dbContext);
 
     // 4. ПІДБІР ДАНИХ ІЗ БАЗИ ДАНИХ
     const drivers = await db('drivers').select('*');
@@ -41,48 +56,51 @@ export async function processTtnText(ctx, textInput) {
     const fractions = await db('fractions').select('*');
     const destinations = await db('destinations').select('*');
 
-    // Шукаємо водія
-    const driverKey = parsed.driver_name.toLowerCase();
-    const dbDriver = drivers.find(d => d.name_key && d.name_key.toLowerCase().includes(driverKey));
-    if (!dbDriver) {
-      return await ctx.reply(`❌ Водія "${parsed.driver_name}" не знайдено в базі.`);
+    let dbDriver, dbVehicle, dbShipper, dbFraction, dbDest;
+
+    if (parsed.driver_name) {
+      const driverKey = parsed.driver_name.toLowerCase();
+      dbDriver = drivers.find(d => 
+        (d.name_key && d.name_key.toLowerCase().includes(driverKey)) ||
+        (d.fio && d.fio.toLowerCase().includes(driverKey))
+      );
     }
 
-    // Шукаємо машину
-    let dbVehicle;
     if (parsed.car_number) {
       const carKey = parsed.car_number.toString().toLowerCase();
-      dbVehicle = vehicles.find(v => v.plate_number.toLowerCase().includes(carKey));
+      dbVehicle = vehicles.find(v => 
+        (v.plate_number && v.plate_number.toLowerCase().includes(carKey)) ||
+        (v.car_info && v.car_info.toLowerCase().includes(carKey))
+      );
     }
-    if (!dbVehicle && dbDriver.default_vehicle_id) {
-      dbVehicle = vehicles.find(v => v.id === dbDriver.default_vehicle_id);
-    }
-    if (!dbVehicle) {
-      return await ctx.reply(`❌ Автомобіль не вказано, і за водієм "${dbDriver.fio}" не закріплено стандартне авто. Додайте авто в адмінці або надиктуйте його номер.`);
-    }
-
-    // Шукаємо вантажовідправника
-    const shipperKey = parsed.shipper_name.toLowerCase();
-    const dbShipper = shippers.find(s => s.shipper_key && s.shipper_key.toLowerCase().includes(shipperKey));
-    if (!dbShipper) {
-      return await ctx.reply(`❌ Вантажовідправника "${parsed.shipper_name}" не знайдено в базі.`);
+    if (!dbVehicle && dbDriver && dbDriver.default_vehicle_id) {
+      dbVehicle = vehicles.find(v => Number(v.id) === Number(dbDriver.default_vehicle_id));
     }
 
-    // Шукаємо фракцію
-    const fractionKey = parsed.cargo_fraction.toLowerCase();
-    const dbFraction = fractions.find(f => f.fraction_key && f.fraction_key.toLowerCase().includes(fractionKey));
-    if (!dbFraction) {
-      return await ctx.reply(`❌ Фракцію/вантаж "${parsed.cargo_fraction}" не знайдено в базі.`);
+    if (parsed.shipper_name) {
+      const shipperKey = parsed.shipper_name.toLowerCase();
+      dbShipper = shippers.find(s => 
+        (s.shipper_key && s.shipper_key.toLowerCase().includes(shipperKey)) ||
+        (s.manager && s.manager.toLowerCase().includes(shipperKey))
+      );
     }
 
-    // Шукаємо пункт розвантаження
-    const destKey = parsed.unloading_point.toLowerCase();
-    const dbDest = destinations.find(d => d.destination_key && d.destination_key.toLowerCase().includes(destKey));
-    if (!dbDest) {
-      return await ctx.reply(`❌ Пункт розвантаження "${parsed.unloading_point}" не знайдено в базі.`);
+    if (parsed.cargo_fraction) {
+      const fractionKey = parsed.cargo_fraction.toLowerCase();
+      dbFraction = fractions.find(f => 
+        (f.fraction_key && f.fraction_key.toLowerCase().includes(fractionKey)) ||
+        (f.name && f.name.toLowerCase().includes(fractionKey))
+      );
     }
 
-    // Розрахунок дати складання документа
+    if (parsed.unloading_point) {
+      const destKey = parsed.unloading_point.toLowerCase();
+      dbDest = destinations.find(d => 
+        (d.destination_key && d.destination_key.toLowerCase().includes(destKey)) ||
+        (d.name && d.name.toLowerCase().includes(destKey))
+      );
+    }
+
     let date = new Date();
     if (parsed.target_date) {
       const parsedDate = new Date(parsed.target_date);
@@ -91,14 +109,13 @@ export async function processTtnText(ctx, textInput) {
       }
     }
 
-    // Зберігаємо вихідні ID/значення в сесію
     ctx.session.pendingTtn = {
-      driver_id: dbDriver.id,
-      vehicle_id: dbVehicle.id,
-      shipper_id: dbShipper.id,
-      fraction_id: dbFraction.id,
-      destination_id: dbDest.id,
-      weight_netto: parseFloat(parsed.weight_netto) || 24.00,
+      driver_id: dbDriver ? dbDriver.id : null,
+      vehicle_id: dbVehicle ? dbVehicle.id : null,
+      shipper_id: dbShipper ? dbShipper.id : null,
+      fraction_id: dbFraction ? dbFraction.id : null,
+      destination_id: dbDest ? dbDest.id : null,
+      weight_netto: parsed.weight_netto ? parseFloat(parsed.weight_netto) : null,
       target_date: date.toISOString()
     };
 
@@ -115,15 +132,13 @@ export async function rebuildPendingTtn(ctx) {
   const p = ctx.session.pendingTtn;
   if (!p) return null;
 
-  const dbDriver = await db('drivers').where({ id: p.driver_id }).first();
-  const dbVehicle = await db('vehicles').where({ id: p.vehicle_id }).first();
-  const dbShipper = await db('shippers').where({ id: p.shipper_id }).first();
-  const dbFraction = await db('fractions').where({ id: p.fraction_id }).first();
-  const dbDest = await db('destinations').where({ id: p.destination_id }).first();
+  const dbDriver = p.driver_id ? await db('drivers').where({ id: p.driver_id }).first() : null;
+  const dbVehicle = p.vehicle_id ? await db('vehicles').where({ id: p.vehicle_id }).first() : null;
+  const dbShipper = p.shipper_id ? await db('shippers').where({ id: p.shipper_id }).first() : null;
+  const dbFraction = p.fraction_id ? await db('fractions').where({ id: p.fraction_id }).first() : null;
+  const dbDest = p.destination_id ? await db('destinations').where({ id: p.destination_id }).first() : null;
 
-  if (!dbDriver || !dbVehicle || !dbShipper || !dbFraction || !dbDest) {
-    throw new Error("Не вдалося завантажити всі сутності з бази даних для перерахунку ТТН.");
-  }
+  let isComplete = !!(dbDriver && dbVehicle && dbShipper && dbFraction && dbDest && p.weight_netto);
 
   let date = new Date(p.target_date);
   if (isNaN(date.getTime())) {
@@ -132,50 +147,67 @@ export async function rebuildPendingTtn(ctx) {
   const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
   const formattedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} р.`;
 
-  const netto = parseFloat(p.weight_netto) || 24.00;
-  const brutto = parseFloat((netto + dbVehicle.tare_weight).toFixed(2));
+  const netto = p.weight_netto ? parseFloat(p.weight_netto) : null;
+  
+  if (isComplete) {
+    const brutto = 39.8;
+    const computedTare = parseFloat((brutto - netto).toFixed(2));
+    const formatVal = (val) => val !== null && val !== undefined ? val.toString().replace('.', ',') : '';
 
-  // Безпечне форматування: заміна крапки на кому для українських бланків
-  const formatVal = (val) => val !== null && val !== undefined ? val.toString().replace('.', ',') : '';
+    const ttnData = {
+      ...staticPresets,
+      consignee_info: dbDriver.info || staticPresets.consignee_info,
+      carrier_info: dbDriver.info || staticPresets.carrier_info,
+      ttn_date: formattedDate,
+      shipper_info: dbShipper.info,
+      shipper_manager: dbShipper.manager,
+      car_info: dbVehicle.car_info,
+      trailer_info: dbVehicle.trailer_info,
+      driver_fio: dbDriver.fio,
+      driver_license: dbDriver.license,
+      unloading_point: dbDest.name,
+      cargo_name: dbFraction.name,
+      weight_netto: formatVal(netto),
+      weight_brutto: formatVal(brutto),
+      tare_and_brutto: `${formatVal(computedTare)}/${formatVal(brutto)}`,
+      weight_brutto_words: `${formatVal(brutto)} т.`
+    };
+    ctx.session.pendingTtnData = ttnData;
+  } else {
+    ctx.session.pendingTtnData = null;
+  }
 
-  const ttnData = {
-    ...staticPresets,
-    consignee_info: dbDriver.info || staticPresets.consignee_info,
-    carrier_info: dbDriver.info || staticPresets.carrier_info,
-    ttn_date: formattedDate,
-    shipper_info: dbShipper.info,
-    shipper_manager: dbShipper.manager,
-    car_info: dbVehicle.car_info,
-    trailer_info: dbVehicle.trailer_info,
-    driver_fio: dbDriver.fio,
-    driver_license: dbDriver.license,
-    unloading_point: dbDest.name,
-    cargo_name: dbFraction.name,
-    weight_netto: formatVal(netto),
-    weight_brutto: formatVal(brutto),
-    tare_and_brutto: `${formatVal(dbVehicle.tare_weight)}/${formatVal(brutto)}`,
-    weight_brutto_words: `${formatVal(brutto)} т.`
-  };
-
-  ctx.session.pendingTtnData = ttnData;
-  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto };
+  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, isComplete };
 }
 
-export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto) {
+export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, isComplete) {
   let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
-    `👤 **Водій:** ${dbDriver.fio}\n` +
-    `🚗 **Авто:** ${dbVehicle.plate_number} (${dbVehicle.car_info})\n` +
-    `🏢 **Відправник:** ${dbShipper.manager}\n` +
-    `🪨 **Вантаж:** ${dbFraction.name}\n` +
-    `📍 **Розвантаження:** ${dbDest.name}\n` +
-    `⚖️ **Вага (нетто):** ${netto} т.\n\n`;
+    `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
+    `🚗 **Авто:** ${dbVehicle ? `${dbVehicle.plate_number} (${dbVehicle.car_info})` : '❌ Відсутнє або не знайдено'}\n` +
+    `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
+    `🪨 **Вантаж:** ${dbFraction ? dbFraction.name : '❌ Відсутній або не знайдено'}\n` +
+    `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n` +
+    `⚖️ **Вага (нетто):** ${netto ? `${netto} т.` : '❌ Не вказано'}\n`;
+    
+  if (netto) {
+    const computedTare = parseFloat((39.8 - netto).toFixed(2));
+    confirmText += `⚖️ **Вага (тара):** ${computedTare} т.\n`;
+    confirmText += `⚖️ **Вага (брутто):** 39.8 т.\n\n`;
+  } else {
+    confirmText += `\n`;
+  }
+
+  if (!isComplete) {
+    confirmText += `⚠️ **Не всі дані розпізнано!**\nБудь ласка, натисніть "✏️ Редагувати дані", щоб заповнити відсутні поля та згенерувати ТТН.\n\n`;
+    return confirmText;
+  }
 
   let emptyFields = [];
-  if (!dbDriver.info) emptyFields.push('Реквізити водія (Перевізник / Одержувач)');
-  if (!dbDriver.license) emptyFields.push('Посвідчення водія');
-  if (!dbShipper.info) emptyFields.push('Реквізити відправника');
-  if (!dbVehicle.car_info) emptyFields.push('Марка автомобіля');
-  if (!dbVehicle.trailer_info) emptyFields.push('Причіп');
+  if (dbDriver && !dbDriver.info) emptyFields.push('Реквізити водія (Перевізник / Одержувач)');
+  if (dbDriver && !dbDriver.license) emptyFields.push('Посвідчення водія');
+  if (dbShipper && !dbShipper.info) emptyFields.push('Реквізити відправника');
+  if (dbVehicle && !dbVehicle.car_info) emptyFields.push('Марка автомобіля');
+  if (dbVehicle && !dbVehicle.trailer_info) emptyFields.push('Причіп');
 
   if (emptyFields.length > 0) {
     confirmText += `⚠️ **Увага:** У базі даних не заповнені наступні поля:\n`;
@@ -187,11 +219,16 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
   return confirmText;
 }
 
-export function getPreviewKeyboard() {
-  return new InlineKeyboard()
-    .text("✅ Так, генерувати", "ttn_generate_yes")
-    .text("❌ Відмінити", "ttn_generate_no").row()
-    .text("✏️ Редагувати дані", "ttn_edit_main");
+export function getPreviewKeyboard(isComplete) {
+  const keyboard = new InlineKeyboard();
+  if (isComplete) {
+    keyboard.text("✅ Так, генерувати", "ttn_generate_yes")
+    keyboard.text("❌ Відмінити", "ttn_generate_no").row();
+  } else {
+    keyboard.text("❌ Відмінити", "ttn_generate_no").row();
+  }
+  keyboard.text("✏️ Редагувати дані", "ttn_edit_main");
+  return keyboard;
 }
 
 export async function sendOrEditPreview(ctx) {
@@ -200,8 +237,8 @@ export async function sendOrEditPreview(ctx) {
     if (!details) {
       return ctx.reply("❌ Помилка: дані ТТН не знайдено.");
     }
-    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto);
-    const reply_markup = getPreviewKeyboard();
+    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.isComplete);
+    const reply_markup = getPreviewKeyboard(details.isComplete);
     if (ctx.callbackQuery) {
       await ctx.editMessageText(text, { reply_markup, parse_mode: "Markdown" }).catch(() => {});
     } else {

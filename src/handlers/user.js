@@ -13,7 +13,8 @@ import {
   showVehiclesList,
   showShippersList,
   showFractionsList,
-  showDestinationsList
+  showDestinationsList,
+  getDbContext
 } from '../services/ttn.js';
 import { transcribeAudio } from '../services/ai.js';
 import { isAdmin, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './admin/utils.js';
@@ -43,13 +44,25 @@ userRouter.command("start", async (ctx) => {
     return ctx.reply("⛔ У вас немає доступу до цього бота.\n\nЩоб отримати права, надішліть свій запит головному адміну:", { reply_markup: inlineKb });
   }
 
-  const reply_markup = new Keyboard().text("⚙️ Адмін-панель").text("❓ Допомога").resized().persistent();
+  const reply_markup = new Keyboard()
+    .text("⚙️ Адмін-панель")
+    .text("❓ Допомога")
+    .resized()
+    .persistent()
+    .placeholder("🎤 Водій, Відправник, Вантаж, Пункт, Вага, Авто...");
 
   const welcomeText = "👋 Привіт! Я твій голосовий логіст ТТН.\n\n" +
-                      "🎤 **Натисни та утримуй мікрофон, щоб надиктувати рейс.**\n\n" +
-                      "💡 *Приклад:* _«Іваненко,  22.5 тон,  5-20»_";
+                      "🎤 **Натисни та утримуй мікрофон, щоб надиктувати рейс.**";
 
   await ctx.reply(welcomeText, { reply_markup, parse_mode: "Markdown" });
+
+  const inlineKb = new InlineKeyboard().text("💡 Шпаргалка параметрів", "show_popup_help");
+  const helpMsg = await ctx.reply("📋 Шпаргалка параметрів ТТН завжди закріплена вгорі чату:", { reply_markup: inlineKb });
+  
+  // Автоматично закріплюємо повідомлення з інлайн-кнопкою
+  await ctx.pinChatMessage(helpMsg.message_id, { disable_notification: true }).catch(err => {
+    console.error("Не вдалося закріпити повідомлення:", err);
+  });
 });
 
 userRouter.callbackQuery("send_id_to_admin", async (ctx) => {
@@ -89,24 +102,46 @@ userRouter.hears("⚙️ Адмін-панель", async (ctx) => {
 userRouter.hears("❓ Допомога", async (ctx) => {
   const helpText = `📌 **Довідка по роботі з ботом**\n\n` +
                    `🎤 **Як генерувати ТТН:**\n` +
-                   `Просто надиктуйте голосове повідомлення або напишіть текст.\n` +
-                   `Приклад: _"Іваненко, машина ВК1234, відправник Коваленко, 22.5 тон, щебінь 5-20, на Ратне, на завтра"_\n\n` +
+                   `Натисніть мікрофон і надиктуйте рейс (або надішліть текстом).\n` +
+                   `👉 *Приклад:* _"Петро, відправник Завод, фракція 5-20, на Рівне, вага 24.5"_\n` +
+                   `💡 **Шпаргалка обов'язкових параметрів** завжди закріплена вгорі вашого чату.\n\n` +
+                   `🚗 **Призначення автомобіля:**\n` +
+                   `Якщо ви не назвали авто, бот автоматично підтягне дефолтну машину, закріплену за цим водієм в Адмін-панелі.\n\n` +
+                   `⚖️ **Розрахунок ваги:**\n` +
+                   `Загальна вага (брутто) завжди зафіксована на рівні **39.8 т**. Вага тари вираховується автоматично: \`39.8 - вага нетто\`.\n\n` +
+                   `✏️ **Редагування перед генерацією:**\n` +
+                   `Якщо ви припустилися помилки або забули щось вказати — не диктуйте все заново! Під повідомленням-перевіркою натисніть **"✏️ Редагувати дані"**, щоб змінити або доповнити будь-яке поле.\n\n` +
                    `⚙️ **Адмін-панель:**\n` +
-                   `Дозволяє додавати та редагувати водіїв, автомобілі, відправників, пункти розвантаження та фракції у базі.\n\n` +
+                   `Кнопка для керування водіями, авто, відправниками, пунктами розвантаження та фракціями.\n\n` +
                    `🔢 **Лічильник номерів:**\n` +
-                   `Можна задати вручну командою \`/set номер\` (наприклад: \`/set 344\`).`;
+                   `Задати номер наступного бланку можна командою \`/set номер\` (наприклад: \`/set 344\`).`;
 
   await ctx.reply(helpText, { parse_mode: "Markdown" });
+});
+
+userRouter.hears("💡 Шпаргалка", async (ctx) => {
+  const popupText = `📋 **Шаблон обов'язкових параметрів ТТН:**\n\n` +
+                    `Вкажіть у повідомленні:\n` +
+                    `1. 👤 **Водій** (наприклад: Петро)\n` +
+                    `2. 🚗 **Авто** (наприклад: 8025 — необов'язково, якщо є дефолтне)\n` +
+                    `3. 🏢 **Відправник** (наприклад: Завод)\n` +
+                    `4. 🪨 **Вантаж/фракція** (наприклад: 5-20)\n` +
+                    `5. 📍 **Пункт розвантаження** (наприклад: Рівне)\n` +
+                    `6. ⚖️ **Вага** (наприклад: 24.5)\n\n` +
+                    `🎤 **Приклад фрази:**\n` +
+                    `_"Петро, відправник Завод, фракція 5-20, на Рівне, вага 24.5"_`;
+  await ctx.reply(popupText, { parse_mode: "Markdown" });
 });
 
 userRouter.on("message:voice", async (ctx) => {
   await ctx.reply("🎧 Голосове отримано! Опрацьовую запит... 🚀");
   let audioPath = null;
   try {
+    const dbContext = await getDbContext();
     audioPath = await downloadVoiceFile(ctx, process.env.TELEGRAM_BOT_TOKEN, __dirname);
-    const voiceText = await transcribeAudio(audioPath);
+    const voiceText = await transcribeAudio(audioPath, dbContext);
     await ctx.reply(`🗣️ **Розпізнаний текст:**\n_${voiceText}_`, { parse_mode: "Markdown" });
-    await processTtnText(ctx, voiceText);
+    await processTtnText(ctx, voiceText, dbContext);
   } catch (err) {
     console.error("Помилка обробки голосового:", err);
     await ctx.reply("❌ Не вдалося розпізнати голосове повідомлення.");
@@ -124,7 +159,8 @@ userRouter.on("message:text", async (ctx, next) => {
   if (text.includes("Допомога")) return next();
 
   await ctx.reply("📝 Текстовий запит отримано! Опрацьовую... 🚀");
-  await processTtnText(ctx, text);
+  const dbContext = await getDbContext();
+  await processTtnText(ctx, text, dbContext);
 });
 
 userRouter.callbackQuery("ttn_generate_yes", async (ctx) => {

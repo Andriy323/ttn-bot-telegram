@@ -45,10 +45,10 @@ async function destinationConv(conversation, ctx) {
   const id = isEdit ? parseInt(data.split('_')[3], 10) : null;
   const destination = isEdit ? (await conversation.external(() => db('destinations').where({ id }).first()) || {}) : {};
 
-  let destination_key = await promptText(conversation, ctx, `Введіть синоніми для ШІ через кому (напр. ратне, база)`, isEdit, destination.destination_key);
+  let destination_key = await promptText(conversation, ctx, `Введіть синоніми для ШІ через кому (напр. рівне, база)`, isEdit, destination.destination_key);
   if (destination_key === '__CANCEL__') return;
   
-  let name = await promptText(conversation, ctx, `Введіть офіційну назву для ТТН (напр. смт.Ратне, вул.В.Івасюка)`, isEdit, destination.name);
+  let name = await promptText(conversation, ctx, `Введіть офіційну назву для ТТН (напр. м.Рівне, вул.Центральна)`, isEdit, destination.name);
   if (name === '__CANCEL__') return;
 
   if (!isEdit) {
