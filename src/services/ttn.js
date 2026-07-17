@@ -322,7 +322,9 @@ export async function showFractionsList(ctx) {
   const fractions = await db('fractions').select('*');
   const keyboard = new InlineKeyboard();
   fractions.forEach(f => {
-    keyboard.text(f.name.substring(0, 30), `ttn_set_fraction_${f.id}`).row();
+    const shortName = f.name.length > 20 ? f.name.substring(0, 17) + "..." : f.name;
+    const btnText = f.fraction_key ? `📎 ${f.fraction_key} (${shortName})` : f.name.substring(0, 30);
+    keyboard.text(btnText, `ttn_set_fraction_${f.id}`).row();
   });
   keyboard.text("⬅️ Назад", "ttn_edit_main");
   await ctx.editMessageText("🪨 **Оберіть фракцію/вантаж із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
