@@ -58,10 +58,18 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
 
     let dbDriver, dbVehicle, dbShipper, dbFraction, dbDest;
 
+    // Розумний пошук: розбиває ключові слова по комі і перевіряє кожне окремо
+    const fuzzyMatch = (dbField, searchKey) => {
+      if (!dbField || !searchKey) return false;
+      const search = searchKey.toLowerCase().trim();
+      const keywords = dbField.toLowerCase().split(',').map(k => k.trim());
+      return keywords.some(k => k.includes(search) || search.includes(k));
+    };
+
     if (parsed.driver_name) {
       const driverKey = parsed.driver_name.toLowerCase();
       dbDriver = drivers.find(d => 
-        (d.name_key && d.name_key.toLowerCase().includes(driverKey)) ||
+        fuzzyMatch(d.name_key, driverKey) ||
         (d.fio && d.fio.toLowerCase().includes(driverKey))
       );
     }
@@ -80,7 +88,7 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
     if (parsed.shipper_name) {
       const shipperKey = parsed.shipper_name.toLowerCase();
       dbShipper = shippers.find(s => 
-        (s.shipper_key && s.shipper_key.toLowerCase().includes(shipperKey)) ||
+        fuzzyMatch(s.shipper_key, shipperKey) ||
         (s.manager && s.manager.toLowerCase().includes(shipperKey))
       );
     }
@@ -88,7 +96,7 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
     if (parsed.cargo_fraction) {
       const fractionKey = parsed.cargo_fraction.toLowerCase();
       dbFraction = fractions.find(f => 
-        (f.fraction_key && f.fraction_key.toLowerCase().includes(fractionKey)) ||
+        fuzzyMatch(f.fraction_key, fractionKey) ||
         (f.name && f.name.toLowerCase().includes(fractionKey))
       );
     }
@@ -96,7 +104,7 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
     if (parsed.unloading_point) {
       const destKey = parsed.unloading_point.toLowerCase();
       dbDest = destinations.find(d => 
-        (d.destination_key && d.destination_key.toLowerCase().includes(destKey)) ||
+        fuzzyMatch(d.destination_key, destKey) ||
         (d.name && d.name.toLowerCase().includes(destKey))
       );
     }
