@@ -61,7 +61,7 @@ export async function parseTtnDataFromText(text, dbContext = null) {
         - shipper_name: назва відправника коротко. Якщо відсутнє - null.
         - unloading_point: назва міста чи смт. Запиши тільки назву населеного пункту. Якщо відсутнє - null.
         - cargo_fraction: фракція щебеню. Якщо відсутнє - null.
-        - weight_netto: чиста вага числом з крапкою (наприклад: 24.00 або 24.5). Якщо відсутнє - null.
+        - weight_netto: чиста вага числом (наприклад: 24.0, 26, 24.5). Витягни число з фраз типу "26 тонн", "вага 24.5", "24 т", "27,2 тонни". Якщо відсутнє - null.
         - target_date: обчислена цільова дата поїздки у форматі "YYYY-MM-DD" (наприклад: "2026-07-15"). Враховуй слова "сьогодні", "завтра", "на понеділок", "на 25 число" відштовхуючись від сьогоднішньої дати. Якщо дата не вказана у повідомленні, поверни сьогоднішню дату.
 
         Формат відповіді:
@@ -79,5 +79,7 @@ export async function parseTtnDataFromText(text, dbContext = null) {
     ]
   });
 
-  return JSON.parse(aiResponse.choices[0].message.content);
+  const parsed = JSON.parse(aiResponse.choices[0].message.content);
+  console.log("🤖 AI parsed result:", JSON.stringify(parsed));
+  return parsed;
 }

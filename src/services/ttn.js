@@ -119,6 +119,16 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
       target_date: date.toISOString()
     };
 
+    console.log("📋 DB matching result:", JSON.stringify({
+      driver: dbDriver ? dbDriver.fio : null,
+      vehicle: dbVehicle ? dbVehicle.plate_number : null,
+      shipper: dbShipper ? dbShipper.manager : null,
+      fraction: dbFraction ? dbFraction.name : null,
+      destination: dbDest ? dbDest.name : null,
+      weight: parsed.weight_netto,
+      pendingTtn: ctx.session.pendingTtn
+    }));
+
     // Будуємо фінальні дані та відправляємо прев'ю
     await sendOrEditPreview(ctx);
 
