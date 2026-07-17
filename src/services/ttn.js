@@ -208,7 +208,16 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
   }
 
   if (!isComplete) {
-    confirmText += `⚠️ **Не всі дані розпізнано!**\nБудь ласка, натисніть "✏️ Редагувати дані", щоб заповнити відсутні поля та згенерувати ТТН.\n\n`;
+    let missingFields = [];
+    if (!dbDriver) missingFields.push('👤 Водій');
+    if (!dbVehicle) missingFields.push('🚗 Авто');
+    if (!dbShipper) missingFields.push('🏢 Відправник');
+    if (!dbFraction) missingFields.push('🪨 Вантаж');
+    if (!dbDest) missingFields.push('📍 Розвантаження');
+    if (!netto) missingFields.push('⚖️ Вага');
+
+    confirmText += `⚠️ **Не вистачає:** ${missingFields.join(', ')}\n`;
+    confirmText += `Натисніть "✏️ Редагувати дані", щоб заповнити.\n\n`;
     return confirmText;
   }
 
