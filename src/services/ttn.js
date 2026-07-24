@@ -228,11 +228,12 @@ export async function rebuildPendingTtn(ctx) {
     ctx.session.pendingTtnData = null;
   }
 
-  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, isComplete };
+  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete };
 }
 
-export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, isComplete) {
+export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete) {
   let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
+    `📅 **Дата:** ${formattedDate || '❌ Не вказано'}\n` +
     `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
     `🚗 **Авто:** ${dbVehicle ? dbVehicle.car_info : '❌ Відсутнє або не знайдено'}\n` +
     `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
@@ -300,7 +301,7 @@ export async function sendOrEditPreview(ctx, forceReply = false) {
     if (!details) {
       return ctx.reply("❌ Помилка: дані ТТН не знайдено.");
     }
-    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.isComplete);
+    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.formattedDate, details.isComplete);
     const reply_markup = getPreviewKeyboard(details.isComplete);
     if (ctx.callbackQuery && !forceReply) {
       await ctx.editMessageText(text, { reply_markup, parse_mode: "Markdown" }).catch(() => {});
@@ -321,7 +322,22 @@ export function getEditMenuKeyboard() {
     .text("🪨 Вантаж", "ttn_edit_field_fraction").row()
     .text("📍 Розвантаження", "ttn_edit_field_destination")
     .text("⚖️ Вага", "ttn_edit_field_weight").row()
+    .text("📅 Дата", "ttn_edit_field_date").row()
     .text("⬅️ Назад", "ttn_edit_back");
+}
+
+export async function showDateOptions(ctx) {
+  const keyboard = new InlineKeyboard()
+    .text("📅 Сьогодні", "ttn_set_date_today")
+    .text("📅 Завтра", "ttn_set_date_tomorrow").row()
+    .text("📅 Післязавтра", "ttn_set_date_after_tomorrow").row()
+    .text("✍️ Ввести іншу дату", "ttn_edit_field_date_manual").row()
+    .text("⬅️ Назад", "ttn_edit_main");
+
+  await ctx.editMessageText("📅 **Оберіть дату поїздки для ТТН або введіть свій варіант:**", {
+    reply_markup: keyboard,
+    parse_mode: "Markdown"
+  });
 }
 
 export async function showDriversList(ctx) {

@@ -14,6 +14,7 @@ import {
   showShippersList,
   showFractionsList,
   showDestinationsList,
+  showDateOptions,
   getDbContext
 } from '../services/ttn.js';
 import { transcribeAudio } from '../services/ai.js';
@@ -159,6 +160,43 @@ userRouter.on("message:text", async (ctx, next) => {
   if (text.includes("Адмін-панель")) return next();
   if (text.includes("Допомога")) return next();
 
+  // Обробка введення дати (сесійна машина станів)
+  if (ctx.session.awaitingDate) {
+    const dateStr = text.trim();
+    let parsedDate = null;
+
+    const partsDot = dateStr.split('.');
+    if (partsDot.length === 3) {
+      const day = parseInt(partsDot[0], 10);
+      const month = parseInt(partsDot[1], 10) - 1;
+      let year = parseInt(partsDot[2], 10);
+      if (year < 100) year += 2000;
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) parsedDate = d;
+    }
+
+    if (!parsedDate) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) parsedDate = d;
+    }
+
+    if (!parsedDate) {
+      await ctx.reply("❌ Неправильний формат дати. Будь ласка, введіть дату у форматі **ДД.ММ.РРРР** (наприклад: 25.07.2026):", { parse_mode: "Markdown" });
+      return;
+    }
+
+    if (ctx.session.datePromptMsgId) {
+      await ctx.api.deleteMessage(ctx.chat.id, ctx.session.datePromptMsgId).catch(() => {});
+    }
+    await ctx.deleteMessage().catch(() => {});
+
+    ctx.session.awaitingDate = false;
+    ctx.session.datePromptMsgId = null;
+    ctx.session.pendingTtn.target_date = parsedDate.toISOString();
+    await sendOrEditPreview(ctx);
+    return;
+  }
+
   // Обробка введення ваги (сесійна машина станів)
   if (ctx.session.awaitingWeight) {
     const textVal = text.trim().replace(',', '.');
@@ -260,7 +298,55 @@ userRouter.callbackQuery("ttn_edit_field_destination", async (ctx) => {
   await showDestinationsList(ctx);
 });
 
-// 4. Редагування ваги (сесійна машина станів)
+// 4. Редагування дати
+userRouter.callbackQuery("ttn_edit_field_date", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await showDateOptions(ctx);
+});
+
+userRouter.callbackQuery("ttn_set_date_today", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const d = new Date();
+  ctx.session.pendingTtn.target_date = d.toISOString();
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery("ttn_set_date_tomorrow", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  ctx.session.pendingTtn.target_date = d.toISOString();
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery("ttn_set_date_after_tomorrow", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const d = new Date();
+  d.setDate(d.getDate() + 2);
+  ctx.session.pendingTtn.target_date = d.toISOString();
+  await sendOrEditPreview(ctx);
+});
+
+userRouter.callbackQuery("ttn_edit_field_date_manual", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.deleteMessage().catch(() => {});
+
+  const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_date_cancel");
+  const promptMsg = await ctx.reply("📅 **Введіть нову дату у форматі ДД.ММ.РРРР (наприклад: 25.07.2026):**", { reply_markup: keyboard, parse_mode: "Markdown" });
+
+  ctx.session.awaitingDate = true;
+  ctx.session.datePromptMsgId = promptMsg.message_id;
+});
+
+userRouter.callbackQuery("ttn_edit_date_cancel", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  ctx.session.awaitingDate = false;
+  ctx.session.datePromptMsgId = null;
+  await ctx.deleteMessage().catch(() => {});
+  await sendOrEditPreview(ctx);
+});
+
+// 5. Редагування ваги (сесійна машина станів)
 userRouter.callbackQuery("ttn_edit_field_weight", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.deleteMessage().catch(() => {});
