@@ -234,7 +234,7 @@ export async function rebuildPendingTtn(ctx) {
 export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, isComplete) {
   let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
     `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
-    `🚗 **Авто:** ${dbVehicle ? `${dbVehicle.plate_number} (${dbVehicle.car_info})` : '❌ Відсутнє або не знайдено'}\n` +
+    `🚗 **Авто:** ${dbVehicle ? dbVehicle.car_info : '❌ Відсутнє або не знайдено'}\n` +
     `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
     `🪨 **Вантаж:** ${dbFraction ? dbFraction.name : '❌ Відсутній або не знайдено'}\n` +
     `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n` +
