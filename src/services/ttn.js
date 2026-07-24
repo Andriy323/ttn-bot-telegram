@@ -243,9 +243,7 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
   if (netto) {
     const computedTare = parseFloat((39.8 - netto).toFixed(2));
     confirmText += `⚖️ **Вага (тара):** ${computedTare} т.\n`;
-    confirmText += `⚖️ **Вага (брутто):** 39.8 т.\n\n`;
-  } else {
-    confirmText += `\n`;
+    confirmText += `⚖️ **Вага (брутто):** 39.8 т.\n`;
   }
 
   if (!isComplete) {
@@ -257,8 +255,12 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
     if (!dbDest) missingFields.push('📍 Розвантаження');
     if (!netto) missingFields.push('⚖️ Вага');
 
-    confirmText += `⚠️ **Не вистачає:** ${missingFields.join(', ')}\n`;
-    confirmText += `Натисніть "✏️ Редагувати дані", щоб заповнити.\n\n`;
+    confirmText += `\n───────────────────\n`;
+    confirmText += `🚨 **НЕ ВИСТАЧАЄ ДАНИХ:**\n`;
+    missingFields.forEach(field => {
+      confirmText += ` • ${field}\n`;
+    });
+    confirmText += `\n💡 _Натисніть кнопку **«✏️ Редагувати дані»** нижче, щоб додати недостатню інформацію._\n`;
     return confirmText;
   }
 
@@ -270,12 +272,13 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
   if (dbVehicle && !dbVehicle.trailer_info) emptyFields.push('Причіп');
 
   if (emptyFields.length > 0) {
-    confirmText += `⚠️ **Увага:** У базі даних не заповнені наступні поля:\n`;
-    emptyFields.forEach(f => confirmText += `— ${f}\n`);
-    confirmText += `Відповідні графи у бланку ТТН залишаться пустими!\n\n`;
+    confirmText += `\n───────────────────\n`;
+    confirmText += `⚠️ **Увага:** У базі даних не заповнені реквізити:\n`;
+    emptyFields.forEach(f => confirmText += ` • ${f}\n`);
+    confirmText += `_Відповідні графи у бланку ТТН залишаться порожніми._\n`;
   }
 
-  confirmText += `Генеруємо?`;
+  confirmText += `\n🎉 **Генеруємо ТТН?**`;
   return confirmText;
 }
 
