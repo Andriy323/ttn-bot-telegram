@@ -135,7 +135,42 @@ userRouter.hears("💡 Шпаргалка", async (ctx) => {
   await ctx.reply(popupText, { parse_mode: "Markdown" });
 });
 
+function parseFlexibleDate(str) {
+  if (!str) return null;
+  str = str.trim();
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Підтримка DD.MM.YYYY, DD.MM.YY, DD.MM, DD/MM, DD-MM тощо
+  const match = str.match(/^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?$/);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    let year = match[3] ? parseInt(match[3], 10) : currentYear;
+
+    if (year < 100) year += 2000;
+
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime()) && d.getMonth() === month && d.getDate() === day) {
+      return d;
+    }
+  }
+
+  const isoDate = new Date(str);
+  if (!isNaN(isoDate.getTime())) {
+    return isoDate;
+  }
+
+  return null;
+}
+
 userRouter.on("message:voice", async (ctx) => {
+  ctx.session.awaitingWeight = false;
+  ctx.session.awaitingDate = false;
+  ctx.session.weightPromptMsgId = null;
+  ctx.session.datePromptMsgId = null;
+
   await ctx.reply("🎧 Голосове отримано! Опрацьовую запит... 🚀");
   let audioPath = null;
   try {
@@ -162,26 +197,10 @@ userRouter.on("message:text", async (ctx, next) => {
 
   // Обробка введення дати (сесійна машина станів)
   if (ctx.session.awaitingDate) {
-    const dateStr = text.trim();
-    let parsedDate = null;
-
-    const partsDot = dateStr.split('.');
-    if (partsDot.length === 3) {
-      const day = parseInt(partsDot[0], 10);
-      const month = parseInt(partsDot[1], 10) - 1;
-      let year = parseInt(partsDot[2], 10);
-      if (year < 100) year += 2000;
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) parsedDate = d;
-    }
+    const parsedDate = parseFlexibleDate(text);
 
     if (!parsedDate) {
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) parsedDate = d;
-    }
-
-    if (!parsedDate) {
-      await ctx.reply("❌ Неправильний формат дати. Будь ласка, введіть дату у форматі **ДД.ММ.РРРР** (наприклад: 25.07.2026):", { parse_mode: "Markdown" });
+      await ctx.reply("❌ Неправильний формат дати. Будь ласка, введіть дату (наприклад: **25.07**, **25.07.2026** або **2026-07-25**):", { parse_mode: "Markdown" });
       return;
     }
 
@@ -332,7 +351,7 @@ userRouter.callbackQuery("ttn_edit_field_date_manual", async (ctx) => {
   await ctx.deleteMessage().catch(() => {});
 
   const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_date_cancel");
-  const promptMsg = await ctx.reply("📅 **Введіть нову дату у форматі ДД.ММ.РРРР (наприклад: 25.07.2026):**", { reply_markup: keyboard, parse_mode: "Markdown" });
+  const promptMsg = await ctx.reply("📅 **Введіть нову дату (наприклад: 25.07, 25.07.2026 або 2026-07-25):**", { reply_markup: keyboard, parse_mode: "Markdown" });
 
   ctx.session.awaitingDate = true;
   ctx.session.datePromptMsgId = promptMsg.message_id;

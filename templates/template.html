@@ -547,19 +547,35 @@
             text-decoration: underline;
         }
 
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+        }
+
         .page {
-            border: 1mm solid transparent;
-            margin: 5mm;
+            page-break-after: always;
+            page-break-inside: avoid;
+            margin: 0;
+            padding: 0;
+            width: 1123px;
+            height: 794px;
+            overflow: hidden;
             box-shadow: none;
             -webkit-box-shadow: none;
             -moz-box-shadow: none;
             -ms-box-shadow: none;
             -o-box-shadow: none;
-            border-radius: 2mm;
-            -webkit-border-radius: 2mm;
-            -moz-border-radius: 2mm;
-            -ms-border-radius: 2mm;
-            -o-border-radius: 2mm;
+        }
+
+        #page2 {
+            page-break-after: avoid;
+            page-break-after: unset;
         }
 
         .s8 {

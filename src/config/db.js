@@ -158,12 +158,14 @@ export async function initDb() {
 }
 
 export async function generateNextTtnNumber() {
-  await db('counters').where({ id: 'ttn_counter' }).increment('current_value', 1);
-  const counter = await db('counters').where({ id: 'ttn_counter' }).first();
-  const nextNumeric = counter.current_value;
-  const today = new Date();
-  const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
-  return { numeric: nextNumeric, full: `${nextNumeric}/${currentMonth}` };
+  return await db.transaction(async (trx) => {
+    await trx('counters').where({ id: 'ttn_counter' }).increment('current_value', 1);
+    const counter = await trx('counters').where({ id: 'ttn_counter' }).first();
+    const nextNumeric = counter.current_value;
+    const today = new Date();
+    const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+    return { numeric: nextNumeric, full: `${nextNumeric}/${currentMonth}` };
+  });
 }
 
 export async function setCounterValue(value) {
