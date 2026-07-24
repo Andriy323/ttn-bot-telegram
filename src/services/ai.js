@@ -8,11 +8,20 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 export async function transcribeAudio(audioPath, dbContext = null) {
   let promptVocab = "";
   if (dbContext) {
-    promptVocab = `Рейси водіїв: ${dbContext.drivers.join(', ')}. ` +
-                  `Автомобілі: ${dbContext.vehicles.join(', ')}. ` +
-                  `Відправники: ${dbContext.shippers.join(', ')}. ` +
-                  `Пункти розвантаження: ${dbContext.destinations.join(', ')}. ` +
-                  `Вантаж фракції: ${dbContext.fractions.join(', ')}.`;
+    // Беремо тільки короткі ключові слова/синоніми (ігноруємо довгі офіційні реквізити та ПІБ)
+    const keywords = [
+      ...(dbContext.drivers || []),
+      ...(dbContext.vehicles || []),
+      ...(dbContext.shippers || []),
+      ...(dbContext.destinations || []),
+      ...(dbContext.fractions || [])
+    ]
+      .filter(term => term && term.length > 1 && term.length < 30)
+      .join(', ');
+
+    if (keywords) {
+      promptVocab = `Слова: ${keywords}`.slice(0, 800);
+    }
   }
 
   const transcription = await groq.audio.transcriptions.create({
