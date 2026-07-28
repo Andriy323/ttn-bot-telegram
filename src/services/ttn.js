@@ -237,19 +237,22 @@ export async function rebuildPendingTtn(ctx) {
 
 export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage) {
   let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
-    `📅 **Дата:** ${formattedDate || '❌ Не вказано'}\n` +
+    `📅 **Дата:** ${formattedDate || '❌ Не вказано'}\n\n` +
     `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
     `🚗 **Авто:** ${dbVehicle ? dbVehicle.car_info : '❌ Відсутнє або не знайдено'}\n` +
-    `🏠 **Місце зберігання авто:** ${vehicleStorage || '❌ Не вказано'}\n` +
+    `🏠 **Стоянка авто:** ${vehicleStorage || '❌ Не вказано'}\n\n` +
     `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
     `🪨 **Вантаж:** ${dbFraction ? dbFraction.name : '❌ Відсутній або не знайдено'}\n` +
-    `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n` +
-    `⚖️ **Вага (нетто):** ${netto ? `${netto} т.` : '❌ Не вказано'}\n`;
+    `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n\n`;
     
   if (netto) {
     const computedTare = parseFloat((39.8 - netto).toFixed(2));
-    confirmText += `⚖️ **Вага (тара):** ${computedTare} т.\n`;
-    confirmText += `⚖️ **Вага (брутто):** 39.8 т.\n`;
+    confirmText += `⚖️ **Вага:**\n` +
+      `  • Нетто: **${netto} т.**\n` +
+      `  • Тара: **${computedTare} т.**\n` +
+      `  • Брутто: **39.8 т.**\n`;
+  } else {
+    confirmText += `⚖️ **Вага (нетто):** ❌ Не вказано\n`;
   }
 
   if (!isComplete) {
