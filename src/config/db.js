@@ -35,12 +35,31 @@ export async function initDb() {
       table.string('car_info').notNullable();              // "DAF XF105..."
       table.string('trailer_info').notNullable();          // "Wielton..."
       table.float('tare_weight').notNullable();            // 14.68
+      table.string('storage_point').nullable();            // Індивідуальне місце зберігання авто (якщо null — використовується глобальне за замовчуванням)
     });
 
     await db('vehicles').insert([
-      { plate_number: '1111', car_info: 'VOLVO FH12 AA11-11BB', trailer_info: 'Schmitz AA22-22CC', tare_weight: 14.50 },
-      { plate_number: '2222', car_info: 'DAF XF105 BB33-33CC', trailer_info: 'Wielton BB44-44DD', tare_weight: 15.00 }
+      { plate_number: '1111', car_info: 'VOLVO FH12 AA11-11BB', trailer_info: 'Schmitz AA22-22CC', tare_weight: 14.50, storage_point: null },
+      { plate_number: '2222', car_info: 'DAF XF105 BB33-33CC', trailer_info: 'Wielton BB44-44DD', tare_weight: 15.00, storage_point: null }
     ]);
+  } else {
+    if (!await db.schema.hasColumn('vehicles', 'storage_point')) {
+      await db.schema.alterTable('vehicles', table => {
+        table.string('storage_point').nullable();
+      });
+    }
+  }
+
+  // 2.1. Таблиця НАЛАШТУВАНЬ (settings)
+  if (!await db.schema.hasTable('settings')) {
+    await db.schema.createTable('settings', (table) => {
+      table.string('key').primary();
+      table.string('value', 500).notNullable();
+    });
+    await db('settings').insert({
+      key: 'default_vehicle_storage',
+      value: 'м. Київ, вул. Центральна, 1'
+    });
   }
 
   // 3. Таблиця ВОДІЇВ
@@ -170,4 +189,18 @@ export async function generateNextTtnNumber() {
 
 export async function setCounterValue(value) {
   await db('counters').where({ id: 'ttn_counter' }).update({ current_value: value });
+}
+
+export async function getSetting(key, defaultValue = '') {
+  const row = await db('settings').where({ key }).first();
+  return row ? row.value : defaultValue;
+}
+
+export async function setSetting(key, value) {
+  const row = await db('settings').where({ key }).first();
+  if (row) {
+    await db('settings').where({ key }).update({ value });
+  } else {
+    await db('settings').insert({ key, value });
+  }
 }

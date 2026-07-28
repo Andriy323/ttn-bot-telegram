@@ -22,6 +22,7 @@ export const mainAdminKeyboard = new InlineKeyboard()
   .text("🪨 Фракції", "admin_fractions_list").row()
   .text("📍 Розвантаження", "admin_destinations_list")
   .text("🔢 Лічильник", "admin_counter_edit").row()
+  .text("🏠 Стоянка авто (default)", "admin_storage_setting")
   .text("👮 Адміністратори", "admin_admins_list").row()
   .text("❌ Закрити", "admin_close");
 

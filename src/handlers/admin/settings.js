@@ -1,9 +1,41 @@
 import { Composer, InlineKeyboard } from 'grammy';
 import { createConversation } from '@grammyjs/conversations';
-import { db } from '../../config/db.js';
+import { db, getSetting, setSetting } from '../../config/db.js';
 import { promptText, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './utils.js';
 
 export const settingsRouter = new Composer();
+
+// ==========================================
+// 🏠 КЕРУВАННЯ МІСЦЕМ ЗБЕРІГАННЯ ЗА ЗАМОВЧУВАННЯМ
+// ==========================================
+settingsRouter.callbackQuery("admin_storage_setting", async (ctx) => {
+  const currentVal = await getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1');
+  const keyboard = new InlineKeyboard()
+    .text("✏️ Змінити адресу", "admin_storage_change").row()
+    .text("⬅️ Назад", "admin_main");
+
+  await ctx.editMessageText(
+    `🏠 **Місце зберігання авто за замовчуванням**\n\n` +
+    `Поточне значення:\n\`${currentVal}\`\n\n` +
+    `_Ця адреса використовуватиметься для всіх автомобілів, у яких не задано індивідуальне місце зберігання._`,
+    { reply_markup: keyboard, parse_mode: "Markdown" }
+  );
+});
+
+async function storageSettingConv(conversation, ctx) {
+  const currentVal = await conversation.external(() => getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1'));
+  let newAddress = await promptText(conversation, ctx, "Введіть загальне місце/адресу зберігання автомобілів за замовчуванням (наприклад: м. Київ, вул. Центральна, 1):", true, currentVal);
+  if (newAddress === '__CANCEL__') return;
+
+  await conversation.external(() => setSetting('default_vehicle_storage', newAddress.trim()));
+  await ctx.reply(`✅ Загальну адресу зберігання авто за замовчуванням оновлено!\n\n` + MAIN_ADMIN_MENU_TEXT, { reply_markup: mainAdminKeyboard, parse_mode: "Markdown" });
+}
+settingsRouter.use(createConversation(storageSettingConv));
+
+settingsRouter.callbackQuery("admin_storage_change", async (ctx) => {
+  await ctx.deleteMessage();
+  await ctx.conversation.enter("storageSettingConv");
+});
 
 // ==========================================
 // 🔢 КЕРУВАННЯ ЛІЧИЛЬНИКОМ

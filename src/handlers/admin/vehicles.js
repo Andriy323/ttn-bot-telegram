@@ -1,6 +1,6 @@
 import { Composer, InlineKeyboard } from 'grammy';
 import { createConversation } from '@grammyjs/conversations';
-import { db } from '../../config/db.js';
+import { db, getSetting } from '../../config/db.js';
 import { promptText, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './utils.js';
 
 export const vehiclesRouter = new Composer();
@@ -22,11 +22,17 @@ vehiclesRouter.callbackQuery(/admin_vehicle_show_(\d+)/, async (ctx) => {
   const vehicle = await db('vehicles').where({ id }).first();
   if (!vehicle) return ctx.answerCallbackQuery("Не знайдено");
 
+  const defaultStorage = await getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1');
+  const storagePointDisplay = vehicle.storage_point 
+    ? vehicle.storage_point 
+    : `${defaultStorage} _(за замовчуванням)_`;
+
   const text = `🚗 **Автомобіль ID:** ${vehicle.id}\n` +
                `**Номер:** ${vehicle.plate_number}\n` +
                `**Авто:** ${vehicle.car_info}\n` +
                `**Причіп:** ${vehicle.trailer_info}\n` +
-               `**Тара:** ${vehicle.tare_weight} т.`;
+               `**Тара:** ${vehicle.tare_weight} т.\n` +
+               `**Місце зберігання:** ${storagePointDisplay}`;
 
   const keyboard = new InlineKeyboard()
     .text("✏️ Редагувати", `admin_vehicle_edit_${vehicle.id}`)
@@ -67,11 +73,29 @@ async function vehicleConv(conversation, ctx) {
   if (tareText === '__CANCEL__') return;
   let tare_weight = parseFloat(tareText.replace(',', '.'));
 
+  const defaultStorage = await conversation.external(() => getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1'));
+  let promptMsg = `📍 **Місце (стоянка) зберігання автомобіля**\n\n` +
+    `Введіть повну точну адресу постійного зберігання/базування авто (наприклад: *02000, м. Київ, вул. Промислова, 15*).\n\n` +
+    `💡 **ПІДКАЗКА:**\n` +
+    `Якщо ви натиснете кнопку **«⏭️ Пропустити»**, для цього авто автоматично використовуватиметься **загальна адреса за замовчуванням**:\n` +
+    `👉 \`${defaultStorage}\`\n\n` +
+    `_(Примітка: Загальну адресу за замовчуванням завжди можна змінити у меню адмінки «🏠 Стоянка авто (default)»)_`;
+
+  let storage_point_input = await promptText(
+    conversation, 
+    ctx, 
+    promptMsg, 
+    true, 
+    vehicle.storage_point || ''
+  );
+  if (storage_point_input === '__CANCEL__') return;
+  let storage_point = storage_point_input && storage_point_input.trim() ? storage_point_input.trim() : null;
+
   if (!isEdit) {
-    await conversation.external(() => db('vehicles').insert({ plate_number, car_info, trailer_info, tare_weight }));
+    await conversation.external(() => db('vehicles').insert({ plate_number, car_info, trailer_info, tare_weight, storage_point }));
     await ctx.reply("✅ Авто додано!\n\n" + MAIN_ADMIN_MENU_TEXT, { reply_markup: mainAdminKeyboard, parse_mode: "Markdown" });
   } else {
-    await conversation.external(() => db('vehicles').where({ id }).update({ plate_number, car_info, trailer_info, tare_weight }));
+    await conversation.external(() => db('vehicles').where({ id }).update({ plate_number, car_info, trailer_info, tare_weight, storage_point }));
     await ctx.reply("✅ Авто оновлено!\n\n" + MAIN_ADMIN_MENU_TEXT, { reply_markup: mainAdminKeyboard, parse_mode: "Markdown" });
   }
 }

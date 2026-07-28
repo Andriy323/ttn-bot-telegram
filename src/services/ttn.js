@@ -2,7 +2,7 @@ import { InlineKeyboard, InputFile } from 'grammy';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { db, generateNextTtnNumber } from '../config/db.js';
+import { db, generateNextTtnNumber, getSetting } from '../config/db.js';
 import { parseTtnDataFromText } from './ai.js';
 import { generateTtnPdf } from './pdf.js';
 
@@ -199,6 +199,9 @@ export async function rebuildPendingTtn(ctx) {
   const formattedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} р.`;
 
   const netto = p.weight_netto ? parseFloat(p.weight_netto) : null;
+
+  const defaultStorage = await getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1');
+  const vehicleStorage = (dbVehicle && dbVehicle.storage_point) || defaultStorage;
   
   if (isComplete) {
     const brutto = 39.8;
@@ -214,6 +217,7 @@ export async function rebuildPendingTtn(ctx) {
       shipper_manager: dbShipper.manager,
       car_info: dbVehicle.car_info,
       trailer_info: dbVehicle.trailer_info,
+      vehicle_storage: vehicleStorage,
       driver_fio: dbDriver.fio,
       driver_license: dbDriver.license,
       unloading_point: dbDest.name,
@@ -228,14 +232,15 @@ export async function rebuildPendingTtn(ctx) {
     ctx.session.pendingTtnData = null;
   }
 
-  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete };
+  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage };
 }
 
-export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete) {
+export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage) {
   let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
     `📅 **Дата:** ${formattedDate || '❌ Не вказано'}\n` +
     `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
     `🚗 **Авто:** ${dbVehicle ? dbVehicle.car_info : '❌ Відсутнє або не знайдено'}\n` +
+    `🏠 **Місце зберігання авто:** ${vehicleStorage || '❌ Не вказано'}\n` +
     `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
     `🪨 **Вантаж:** ${dbFraction ? dbFraction.name : '❌ Відсутній або не знайдено'}\n` +
     `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n` +
@@ -301,7 +306,7 @@ export async function sendOrEditPreview(ctx, forceReply = false) {
     if (!details) {
       return ctx.reply("❌ Помилка: дані ТТН не знайдено.");
     }
-    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.formattedDate, details.isComplete);
+    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.formattedDate, details.isComplete, details.vehicleStorage);
     const reply_markup = getPreviewKeyboard(details.isComplete);
     if (ctx.callbackQuery && !forceReply) {
       await ctx.editMessageText(text, { reply_markup, parse_mode: "Markdown" }).catch(() => {});
