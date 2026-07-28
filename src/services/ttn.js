@@ -236,23 +236,25 @@ export async function rebuildPendingTtn(ctx) {
 }
 
 export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage) {
-  let confirmText = `📄 **Перевірте дані для ТТН:**\n\n` +
-    `📅 **Дата:** ${formattedDate || '❌ Не вказано'}\n\n` +
-    `👤 **Водій:** ${dbDriver ? dbDriver.fio : '❌ Відсутній або не знайдено'}\n` +
-    `🚗 **Авто:** ${dbVehicle ? dbVehicle.car_info : '❌ Відсутнє або не знайдено'}\n` +
-    `🏠 **Стоянка авто:** ${vehicleStorage || '❌ Не вказано'}\n\n` +
-    `🏢 **Відправник:** ${dbShipper ? dbShipper.manager : '❌ Відсутній або не знайдено'}\n` +
-    `🪨 **Вантаж:** ${dbFraction ? dbFraction.name : '❌ Відсутній або не знайдено'}\n` +
-    `📍 **Розвантаження:** ${dbDest ? dbDest.name : '❌ Відсутнє або не знайдено'}\n\n`;
+  const esc = (s) => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+
+  let confirmText = `<u>📄 <b>Перевірте дані для ТТН:</b></u>\n\n` +
+    `<code>📅 Дата:</code> <i>${esc(formattedDate) || '❌ Не вказано'}</i>\n\n` +
+    `<code>👤 Водій:</code> <i>${dbDriver ? esc(dbDriver.fio) : '❌ Відсутній або не знайдено'}</i>\n` +
+    `<code>🚗 Авто:</code> <i>${dbVehicle ? esc(dbVehicle.car_info) : '❌ Відсутнє або не знайдено'}</i>\n` +
+    `<code>🏠 Стоянка:</code> <i>${esc(vehicleStorage) || '❌ Не вказано'}</i>\n\n` +
+    `<code>🏢 Відправник:</code> <i>${dbShipper ? esc(dbShipper.manager) : '❌ Відсутній або не знайдено'}</i>\n\n` +
+    `<code>🪨 Вантаж:</code> <i>${dbFraction ? esc(dbFraction.name) : '❌ Відсутній або не знайдено'}</i>\n` +
+    `<code>📍 Розвантаження:</code> <i>${dbDest ? esc(dbDest.name) : '❌ Відсутнє або не знайдено'}</i>\n\n`;
     
   if (netto) {
     const computedTare = parseFloat((39.8 - netto).toFixed(2));
-    confirmText += `⚖️ **Вага:**\n` +
-      `  • Нетто: **${netto} т.**\n` +
-      `  • Тара: **${computedTare} т.**\n` +
-      `  • Брутто: **39.8 т.**\n`;
+    confirmText += `<code>⚖️ Вага:</code>\n` +
+      `  • <code>Нетто:</code> <i><b>${netto} т.</b></i>\n` +
+      `  • <code>Тара:</code> <i><b>${computedTare} т.</b></i>\n` +
+      `  • <code>Брутто:</code> <i><b>39.8 т.</b></i>\n`;
   } else {
-    confirmText += `⚖️ **Вага (нетто):** ❌ Не вказано\n`;
+    confirmText += `<code>⚖️ Вага (нетто):</code> ❌ Не вказано\n`;
   }
 
   if (!isComplete) {
@@ -265,11 +267,11 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
     if (!netto) missingFields.push('⚖️ Вага');
 
     confirmText += `\n───────────────────\n`;
-    confirmText += `🚨 **НЕ ВИСТАЧАЄ ДАНИХ:**\n`;
+    confirmText += `🚨 <b>НЕ ВИСТАЧАЄ ДАНИХ:</b>\n`;
     missingFields.forEach(field => {
       confirmText += ` • ${field}\n`;
     });
-    confirmText += `\n💡 _Натисніть кнопку **«✏️ Редагувати дані»** нижче, щоб додати недостатню інформацію._\n`;
+    confirmText += `\n💡 <i>Натисніть кнопку <b>«✏️ Редагувати дані»</b> нижче, щоб додати недостатню інформацію.</i>\n`;
     return confirmText;
   }
 
@@ -282,12 +284,12 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
 
   if (emptyFields.length > 0) {
     confirmText += `\n───────────────────\n`;
-    confirmText += `⚠️ **Увага:** У базі даних не заповнені реквізити:\n`;
+    confirmText += `⚠️ <b>Увага:</b> У базі даних не заповнені реквізити:\n`;
     emptyFields.forEach(f => confirmText += ` • ${f}\n`);
-    confirmText += `_Відповідні графи у бланку ТТН залишаться порожніми._\n`;
+    confirmText += `<i>Відповідні графи у бланку ТТН залишаться порожніми.</i>\n`;
   }
 
-  confirmText += `\n🎉 **Генеруємо ТТН?**`;
+  confirmText += `\n🎉 <b>Генеруємо ТТН?</b>`;
   return confirmText;
 }
 
@@ -312,9 +314,9 @@ export async function sendOrEditPreview(ctx, forceReply = false) {
     const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.formattedDate, details.isComplete, details.vehicleStorage);
     const reply_markup = getPreviewKeyboard(details.isComplete);
     if (ctx.callbackQuery && !forceReply) {
-      await ctx.editMessageText(text, { reply_markup, parse_mode: "Markdown" }).catch(() => {});
+      await ctx.editMessageText(text, { reply_markup, parse_mode: "HTML" }).catch(() => {});
     } else {
-      await ctx.reply(text, { reply_markup, parse_mode: "Markdown" });
+      await ctx.reply(text, { reply_markup, parse_mode: "HTML" });
     }
   } catch (err) {
     console.error("Помилка оновлення прев'ю:", err);
