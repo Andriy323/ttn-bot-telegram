@@ -296,12 +296,18 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
 export function getPreviewKeyboard(isComplete) {
   const keyboard = new InlineKeyboard();
   if (isComplete) {
-    keyboard.text("✅ Так, генерувати", "ttn_generate_yes")
-    keyboard.text("❌ Відмінити", "ttn_generate_no").row();
+    keyboard.inline_keyboard.push([
+      { text: "✅ Так, генерувати", callback_data: "ttn_generate_yes", style: "success" },
+      { text: "❌ Скасувати", callback_data: "ttn_generate_no", style: "danger" }
+    ]);
   } else {
-    keyboard.text("❌ Відмінити", "ttn_generate_no").row();
+    keyboard.inline_keyboard.push([
+      { text: "❌ Скасувати", callback_data: "ttn_generate_no", style: "danger" }
+    ]);
   }
-  keyboard.text("✏️ Редагувати дані", "ttn_edit_main");
+  keyboard.inline_keyboard.push([
+    { text: "✏️ Редагувати дані", callback_data: "ttn_edit_main", style: "primary" }
+  ]);
   return keyboard;
 }
 
