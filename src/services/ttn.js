@@ -157,7 +157,8 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
       fraction_id: dbFraction ? dbFraction.id : null,
       destination_id: dbDest ? dbDest.id : null,
       weight_netto: parsed.weight_netto ? parseFloat(parsed.weight_netto) : null,
-      target_date: date.toISOString()
+      target_date: date.toISOString(),
+      edited_fields: []
     };
 
     console.log("📋 DB matching result:", JSON.stringify({
@@ -330,16 +331,65 @@ export async function sendOrEditPreview(ctx, forceReply = false) {
   }
 }
 
-export function getEditMenuKeyboard() {
-  return new InlineKeyboard()
-    .text("👤 Водій", "ttn_edit_field_driver")
-    .text("🚗 Авто", "ttn_edit_field_vehicle").row()
-    .text("🏢 Відправник", "ttn_edit_field_shipper")
-    .text("🪨 Вантаж", "ttn_edit_field_fraction").row()
-    .text("📍 Розвантаження", "ttn_edit_field_destination")
-    .text("⚖️ Вага", "ttn_edit_field_weight").row()
-    .text("📅 Дата", "ttn_edit_field_date").row()
-    .text("⬅️ Назад", "ttn_edit_back");
+export function markFieldEdited(ctx, fieldName) {
+  if (!ctx.session?.pendingTtn) return;
+  if (!Array.isArray(ctx.session.pendingTtn.edited_fields)) {
+    ctx.session.pendingTtn.edited_fields = [];
+  }
+  if (!ctx.session.pendingTtn.edited_fields.includes(fieldName)) {
+    ctx.session.pendingTtn.edited_fields.push(fieldName);
+  }
+}
+
+function getFieldButton(fieldName, baseLabel, callbackData, pendingTtn) {
+  const isEdited = pendingTtn?.edited_fields?.includes(fieldName);
+  let hasValue = false;
+
+  if (fieldName === 'driver') hasValue = !!pendingTtn?.driver_id;
+  else if (fieldName === 'vehicle') hasValue = !!pendingTtn?.vehicle_id;
+  else if (fieldName === 'shipper') hasValue = !!pendingTtn?.shipper_id;
+  else if (fieldName === 'fraction') hasValue = !!pendingTtn?.fraction_id;
+  else if (fieldName === 'destination') hasValue = !!pendingTtn?.destination_id;
+  else if (fieldName === 'weight') hasValue = pendingTtn?.weight_netto !== null && pendingTtn?.weight_netto !== undefined && Number(pendingTtn?.weight_netto) > 0;
+  else if (fieldName === 'date') hasValue = !!pendingTtn?.target_date;
+
+  let style = 'danger';
+
+  if (isEdited && hasValue) {
+    style = 'primary';
+  } else if (hasValue) {
+    style = 'success';
+  } else {
+    style = 'danger';
+  }
+
+  return {
+    text: baseLabel,
+    callback_data: callbackData,
+    style: style
+  };
+}
+
+export function getEditMenuKeyboard(pendingTtn = {}) {
+  const keyboard = new InlineKeyboard();
+
+  const driverBtn = getFieldButton('driver', '👤 Водій', 'ttn_edit_field_driver', pendingTtn);
+  const vehicleBtn = getFieldButton('vehicle', '🚗 Авто', 'ttn_edit_field_vehicle', pendingTtn);
+  const shipperBtn = getFieldButton('shipper', '🏢 Відправник', 'ttn_edit_field_shipper', pendingTtn);
+  const fractionBtn = getFieldButton('fraction', '🪨 Вантаж', 'ttn_edit_field_fraction', pendingTtn);
+  const destBtn = getFieldButton('destination', '📍 Розвантаження', 'ttn_edit_field_destination', pendingTtn);
+  const weightBtn = getFieldButton('weight', '⚖️ Вага', 'ttn_edit_field_weight', pendingTtn);
+  const dateBtn = getFieldButton('date', '📅 Дата', 'ttn_edit_field_date', pendingTtn);
+
+  keyboard.inline_keyboard.push([driverBtn, vehicleBtn]);
+  keyboard.inline_keyboard.push([shipperBtn, fractionBtn]);
+  keyboard.inline_keyboard.push([destBtn, weightBtn]);
+  keyboard.inline_keyboard.push([dateBtn]);
+  keyboard.inline_keyboard.push([
+    { text: "⬅️ Назад", callback_data: "ttn_edit_back", style: "secondary" }
+  ]);
+
+  return keyboard;
 }
 
 export async function showDateOptions(ctx) {

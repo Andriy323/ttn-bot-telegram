@@ -15,7 +15,8 @@ import {
   showFractionsList,
   showDestinationsList,
   showDateOptions,
-  getDbContext
+  getDbContext,
+  markFieldEdited
 } from '../services/ttn.js';
 import { transcribeAudio } from '../services/ai.js';
 import { isAdmin, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './admin/utils.js';
@@ -212,6 +213,7 @@ userRouter.on("message:text", async (ctx, next) => {
     ctx.session.awaitingDate = false;
     ctx.session.datePromptMsgId = null;
     ctx.session.pendingTtn.target_date = parsedDate.toISOString();
+    markFieldEdited(ctx, 'date');
     await sendOrEditPreview(ctx);
     return;
   }
@@ -235,6 +237,7 @@ userRouter.on("message:text", async (ctx, next) => {
     ctx.session.awaitingWeight = false;
     ctx.session.weightPromptMsgId = null;
     ctx.session.pendingTtn.weight_netto = weight;
+    markFieldEdited(ctx, 'weight');
     await sendOrEditPreview(ctx);
     return;
   }
@@ -280,7 +283,7 @@ userRouter.callbackQuery("ttn_generate_no", async (ctx) => {
 userRouter.callbackQuery("ttn_edit_main", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageText("✏️ **Оберіть поле для редагування:**", {
-    reply_markup: getEditMenuKeyboard(),
+    reply_markup: getEditMenuKeyboard(ctx.session?.pendingTtn),
     parse_mode: "Markdown"
   });
 });
@@ -327,6 +330,7 @@ userRouter.callbackQuery("ttn_set_date_today", async (ctx) => {
   await ctx.answerCallbackQuery();
   const d = new Date();
   ctx.session.pendingTtn.target_date = d.toISOString();
+  markFieldEdited(ctx, 'date');
   await sendOrEditPreview(ctx);
 });
 
@@ -335,6 +339,7 @@ userRouter.callbackQuery("ttn_set_date_tomorrow", async (ctx) => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   ctx.session.pendingTtn.target_date = d.toISOString();
+  markFieldEdited(ctx, 'date');
   await sendOrEditPreview(ctx);
 });
 
@@ -343,6 +348,7 @@ userRouter.callbackQuery("ttn_set_date_after_tomorrow", async (ctx) => {
   const d = new Date();
   d.setDate(d.getDate() + 2);
   ctx.session.pendingTtn.target_date = d.toISOString();
+  markFieldEdited(ctx, 'date');
   await sendOrEditPreview(ctx);
 });
 
@@ -390,6 +396,7 @@ userRouter.callbackQuery(/ttn_set_driver_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.driver_id = id;
+  markFieldEdited(ctx, 'driver');
   
   // Автоматично ставимо дефолтне авто водія, якщо воно є
   try {
@@ -408,6 +415,7 @@ userRouter.callbackQuery(/ttn_set_vehicle_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.vehicle_id = id;
+  markFieldEdited(ctx, 'vehicle');
   await sendOrEditPreview(ctx);
 });
 
@@ -415,6 +423,7 @@ userRouter.callbackQuery(/ttn_set_shipper_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.shipper_id = id;
+  markFieldEdited(ctx, 'shipper');
   await sendOrEditPreview(ctx);
 });
 
@@ -422,6 +431,7 @@ userRouter.callbackQuery(/ttn_set_fraction_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.fraction_id = id;
+  markFieldEdited(ctx, 'fraction');
   await sendOrEditPreview(ctx);
 });
 
@@ -429,6 +439,7 @@ userRouter.callbackQuery(/ttn_set_destination_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.destination_id = id;
+  markFieldEdited(ctx, 'destination');
   await sendOrEditPreview(ctx);
 });
 
