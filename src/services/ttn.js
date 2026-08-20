@@ -386,7 +386,7 @@ export function getEditMenuKeyboard(pendingTtn = {}) {
   keyboard.inline_keyboard.push([destBtn, weightBtn]);
   keyboard.inline_keyboard.push([dateBtn]);
   keyboard.inline_keyboard.push([
-    { text: "⬅️ Назад", callback_data: "ttn_edit_back", style: "secondary" }
+    { text: "⬅️ Назад", callback_data: "ttn_edit_back" }
   ]);
 
   return keyboard;
