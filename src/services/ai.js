@@ -51,7 +51,7 @@ export async function parseTtnDataFromText(text, dbContext = null) {
   }
 
   const aiResponse = await groq.chat.completions.create({
-    model: "gpt-oss-120b", 
+    model: "openai/gpt-oss-120b", 
     response_format: { type: "json_object" },
     messages: [
       {
