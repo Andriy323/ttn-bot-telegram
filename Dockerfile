@@ -1,5 +1,5 @@
-# Use Node.js 20 slim image
-FROM node:20-slim
+# Use Node.js 22 LTS slim image
+FROM node:22-slim
 
 # Install latest chrome stable package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer installs work.
