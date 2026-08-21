@@ -39,7 +39,16 @@ async function getBrowser() {
         '--disable-gpu',
         '--no-first-run',
         '--no-zygote',
-        '--disable-extensions'
+        '--single-process',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--disable-translate',
+        '--hide-scrollbars',
+        '--metrics-recording-only',
+        '--mute-audio',
+        '--js-flags=--max-old-space-size=128'
       ]
     });
   }
