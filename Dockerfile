@@ -24,7 +24,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install production dependencies and force build of sqlite3 from source
-RUN npm ci --only=production --build-from-source=sqlite3
+RUN npm ci --omit=dev --build-from-source=sqlite3
 
 # Copy source code
 COPY . .
