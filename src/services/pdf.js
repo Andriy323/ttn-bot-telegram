@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 let browserInstance = null;
 let idleTimer = null;
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 хвилин простою до автозакриття браузера
+const IDLE_TIMEOUT_MS = 60 * 1000; // 1 хвилина простою до автозакриття браузера
 
 function resetIdleTimer() {
   if (idleTimer) {
@@ -31,24 +31,14 @@ async function getBrowser() {
   if (!browserInstance || !browserInstance.connected) {
     console.log("🚀 Запуск Chromium для генерації PDF...");
     browserInstance = await puppeteer.launch({
-      headless: "new",
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-extensions',
-        '--disable-background-networking',
-        '--disable-default-apps',
-        '--disable-sync',
-        '--disable-translate',
-        '--hide-scrollbars',
-        '--metrics-recording-only',
-        '--mute-audio',
-        '--js-flags=--max-old-space-size=128'
+        '--disable-extensions'
       ]
     });
   }
