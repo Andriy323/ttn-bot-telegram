@@ -22,7 +22,7 @@ import { transcribeAudio } from '../services/ai.js';
 import { isAdmin, MAIN_ADMIN_MENU_TEXT, mainAdminKeyboard } from './admin/utils.js';
 import { adminAuthMiddleware } from '../middlewares/auth.js';
 import { downloadVoiceFile } from '../services/telegramFiles.js';
-
+import { parseFlexibleDate } from '../utils/formatters.js';
 import { db } from '../config/db.js';
 
 dotenv.config();
@@ -35,13 +35,22 @@ export const userRouter = new Composer();
 // Використовуємо middleware для перевірки доступу
 userRouter.use(adminAuthMiddleware);
 
-
+// Хелпер перевірки наявності активної сесії ТТН для callback-ів
+function checkPendingSession(ctx) {
+  if (!ctx.session?.pendingTtn) {
+    ctx.answerCallbackQuery({ text: "❌ Сесія створення ТТН застаріла.", show_alert: true }).catch(() => {});
+    ctx.reply("❌ Сесія створення ТТН застаріла або не знайдена. Будь ласка, надиктуйте рейс знову.");
+    return false;
+  }
+  return true;
+}
 
 userRouter.command("start", async (ctx) => {
   // Скидаємо стан очікування
   ctx.session.awaitingWeight = false;
+  ctx.session.awaitingDate = false;
   
-  let isAdminUser = await isAdmin(ctx);
+  const isAdminUser = await isAdmin(ctx);
 
   if (!isAdminUser) {
     const inlineKb = new InlineKeyboard().text("🆔 Надіслати мій ID адміну", "send_id_to_admin");
@@ -118,7 +127,7 @@ userRouter.hears("❓ Допомога", async (ctx) => {
                    `⚙️ **Адмін-панель:**\n` +
                    `Кнопка для керування водіями, авто, відправниками, пунктами розвантаження та фракціями.\n\n` +
                    `🔢 **Лічильник номерів:**\n` +
-                   `Задати номер наступного бланку можна командою \`/set номер\` (наприклад: \`/set 344\`).`;
+                   `Задати номер наступного бланку можна в Адмін-панелі -> Лічильник або командою \`/set номер\` (наприклад: \`/set 344\`).`;
 
   await ctx.reply(helpText, { parse_mode: "Markdown" });
 });
@@ -135,36 +144,6 @@ userRouter.hears("💡 Шпаргалка", async (ctx) => {
                     `6. ⚖️ **Вага** (наприклад: 24.5)`;
   await ctx.reply(popupText, { parse_mode: "Markdown" });
 });
-
-function parseFlexibleDate(str) {
-  if (!str) return null;
-  str = str.trim();
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-
-  // Підтримка DD.MM.YYYY, DD.MM.YY, DD.MM, DD/MM, DD-MM тощо
-  const match = str.match(/^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?$/);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    let year = match[3] ? parseInt(match[3], 10) : currentYear;
-
-    if (year < 100) year += 2000;
-
-    const d = new Date(year, month, day);
-    if (!isNaN(d.getTime()) && d.getMonth() === month && d.getDate() === day) {
-      return d;
-    }
-  }
-
-  const isoDate = new Date(str);
-  if (!isNaN(isoDate.getTime())) {
-    return isoDate;
-  }
-
-  return null;
-}
 
 userRouter.on("message:voice", async (ctx) => {
   ctx.session.awaitingWeight = false;
@@ -212,9 +191,12 @@ userRouter.on("message:text", async (ctx, next) => {
 
     ctx.session.awaitingDate = false;
     ctx.session.datePromptMsgId = null;
-    ctx.session.pendingTtn.target_date = parsedDate.toISOString();
-    markFieldEdited(ctx, 'date');
-    await sendOrEditPreview(ctx);
+    
+    if (ctx.session.pendingTtn) {
+      ctx.session.pendingTtn.target_date = parsedDate.toISOString();
+      markFieldEdited(ctx, 'date');
+      await sendOrEditPreview(ctx);
+    }
     return;
   }
 
@@ -236,9 +218,12 @@ userRouter.on("message:text", async (ctx, next) => {
 
     ctx.session.awaitingWeight = false;
     ctx.session.weightPromptMsgId = null;
-    ctx.session.pendingTtn.weight_netto = weight;
-    markFieldEdited(ctx, 'weight');
-    await sendOrEditPreview(ctx);
+    
+    if (ctx.session.pendingTtn) {
+      ctx.session.pendingTtn.weight_netto = weight;
+      markFieldEdited(ctx, 'weight');
+      await sendOrEditPreview(ctx);
+    }
     return;
   }
 
@@ -246,6 +231,7 @@ userRouter.on("message:text", async (ctx, next) => {
   const dbContext = await getDbContext();
   await processTtnText(ctx, text, dbContext);
 });
+
 userRouter.callbackQuery("show_popup_help", async (ctx) => {
   await ctx.answerCallbackQuery({
     text: `Приклад: "Петро, авто 8025, Завод, 5-20, Рівне, 24.5"\n\n` +
@@ -263,7 +249,6 @@ userRouter.callbackQuery("show_popup_help", async (ctx) => {
 userRouter.callbackQuery("ttn_generate_yes", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }).catch(() => {});
-  
   await generateAndSendTtnPdf(ctx);
 });
 
@@ -282,8 +267,9 @@ userRouter.callbackQuery("ttn_generate_no", async (ctx) => {
 // 1. Головне меню редагування ТТН
 userRouter.callbackQuery("ttn_edit_main", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await ctx.editMessageText("✏️ **Оберіть поле для редагування:**", {
-    reply_markup: getEditMenuKeyboard(ctx.session?.pendingTtn),
+    reply_markup: getEditMenuKeyboard(ctx.session.pendingTtn),
     parse_mode: "Markdown"
   });
 });
@@ -291,43 +277,51 @@ userRouter.callbackQuery("ttn_edit_main", async (ctx) => {
 // 2. Назад до підтвердження
 userRouter.callbackQuery("ttn_edit_back", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await sendOrEditPreview(ctx);
 });
 
 // 3. Перехід до списків довідників
 userRouter.callbackQuery("ttn_edit_field_driver", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showDriversList(ctx);
 });
 
 userRouter.callbackQuery("ttn_edit_field_vehicle", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showVehiclesList(ctx);
 });
 
 userRouter.callbackQuery("ttn_edit_field_shipper", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showShippersList(ctx);
 });
 
 userRouter.callbackQuery("ttn_edit_field_fraction", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showFractionsList(ctx);
 });
 
 userRouter.callbackQuery("ttn_edit_field_destination", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showDestinationsList(ctx);
 });
 
 // 4. Редагування дати
 userRouter.callbackQuery("ttn_edit_field_date", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await showDateOptions(ctx);
 });
 
 userRouter.callbackQuery("ttn_set_date_today", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const d = new Date();
   ctx.session.pendingTtn.target_date = d.toISOString();
   markFieldEdited(ctx, 'date');
@@ -336,6 +330,7 @@ userRouter.callbackQuery("ttn_set_date_today", async (ctx) => {
 
 userRouter.callbackQuery("ttn_set_date_tomorrow", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const d = new Date();
   d.setDate(d.getDate() + 1);
   ctx.session.pendingTtn.target_date = d.toISOString();
@@ -345,6 +340,7 @@ userRouter.callbackQuery("ttn_set_date_tomorrow", async (ctx) => {
 
 userRouter.callbackQuery("ttn_set_date_after_tomorrow", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const d = new Date();
   d.setDate(d.getDate() + 2);
   ctx.session.pendingTtn.target_date = d.toISOString();
@@ -354,6 +350,7 @@ userRouter.callbackQuery("ttn_set_date_after_tomorrow", async (ctx) => {
 
 userRouter.callbackQuery("ttn_edit_field_date_manual", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await ctx.deleteMessage().catch(() => {});
 
   const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_date_cancel");
@@ -368,12 +365,15 @@ userRouter.callbackQuery("ttn_edit_date_cancel", async (ctx) => {
   ctx.session.awaitingDate = false;
   ctx.session.datePromptMsgId = null;
   await ctx.deleteMessage().catch(() => {});
-  await sendOrEditPreview(ctx);
+  if (ctx.session?.pendingTtn) {
+    await sendOrEditPreview(ctx);
+  }
 });
 
 // 5. Редагування ваги (сесійна машина станів)
 userRouter.callbackQuery("ttn_edit_field_weight", async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   await ctx.deleteMessage().catch(() => {});
 
   const keyboard = new InlineKeyboard().text("❌ Скасувати", "ttn_edit_weight_cancel");
@@ -388,12 +388,15 @@ userRouter.callbackQuery("ttn_edit_weight_cancel", async (ctx) => {
   ctx.session.awaitingWeight = false;
   ctx.session.weightPromptMsgId = null;
   await ctx.deleteMessage().catch(() => {});
-  await sendOrEditPreview(ctx);
+  if (ctx.session?.pendingTtn) {
+    await sendOrEditPreview(ctx);
+  }
 });
 
-// 5. Встановлення вибраного значення з кнопок списку
+// 6. Встановлення вибраного значення з кнопок списку
 userRouter.callbackQuery(/ttn_set_driver_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.driver_id = id;
   markFieldEdited(ctx, 'driver');
@@ -413,6 +416,7 @@ userRouter.callbackQuery(/ttn_set_driver_(\d+)/, async (ctx) => {
 
 userRouter.callbackQuery(/ttn_set_vehicle_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.vehicle_id = id;
   markFieldEdited(ctx, 'vehicle');
@@ -421,6 +425,7 @@ userRouter.callbackQuery(/ttn_set_vehicle_(\d+)/, async (ctx) => {
 
 userRouter.callbackQuery(/ttn_set_shipper_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.shipper_id = id;
   markFieldEdited(ctx, 'shipper');
@@ -429,6 +434,7 @@ userRouter.callbackQuery(/ttn_set_shipper_(\d+)/, async (ctx) => {
 
 userRouter.callbackQuery(/ttn_set_fraction_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.fraction_id = id;
   markFieldEdited(ctx, 'fraction');
@@ -437,9 +443,9 @@ userRouter.callbackQuery(/ttn_set_fraction_(\d+)/, async (ctx) => {
 
 userRouter.callbackQuery(/ttn_set_destination_(\d+)/, async (ctx) => {
   await ctx.answerCallbackQuery();
+  if (!checkPendingSession(ctx)) return;
   const id = parseInt(ctx.match[1], 10);
   ctx.session.pendingTtn.destination_id = id;
   markFieldEdited(ctx, 'destination');
   await sendOrEditPreview(ctx);
 });
-

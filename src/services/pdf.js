@@ -2,30 +2,48 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
+import { escapeHtml } from '../utils/formatters.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let browserInstance = null;
+let idleTimer = null;
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 хвилин простою до автозакриття браузера
+
+function resetIdleTimer() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+  }
+  idleTimer = setTimeout(async () => {
+    if (browserInstance) {
+      console.log("💤 Бот у простої: автоматично закриваємо браузер для вивільнення RAM...");
+      await closeBrowser();
+    }
+  }, IDLE_TIMEOUT_MS);
+}
 
 async function getBrowser() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+  }
+
   if (!browserInstance || !browserInstance.connected) {
+    console.log("🚀 Запуск Chromium для генерації PDF...");
     browserInstance = await puppeteer.launch({
       headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-extensions'
+      ]
     });
   }
   return browserInstance;
-}
-
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 export async function generateTtnPdf(data) {
@@ -51,5 +69,18 @@ export async function generateTtnPdf(data) {
     return pdfBuffer;
   } finally {
     await page.close().catch(() => {});
+    // Запускаємо таймер вимкнення браузера після завершення генерації
+    resetIdleTimer();
+  }
+}
+
+export async function closeBrowser() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  if (browserInstance && browserInstance.connected) {
+    await browserInstance.close().catch(console.error);
+    browserInstance = null;
   }
 }

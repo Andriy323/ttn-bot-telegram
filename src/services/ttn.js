@@ -1,13 +1,14 @@
 import { InlineKeyboard, InputFile } from 'grammy';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { db, generateNextTtnNumber, getSetting } from '../config/db.js';
 import { parseTtnDataFromText } from './ai.js';
 import { generateTtnPdf } from './pdf.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { fuzzyMatch } from '../utils/textMatcher.js';
+import { 
+  formatUkrainianDate, 
+  formatNumberComma, 
+  calculateWeights, 
+  escapeHtml 
+} from '../utils/formatters.js';
 
 // Загальні незмінні поля для бланка ТТН
 export const staticPresets = {
@@ -46,10 +47,10 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
       dbContext = await getDbContext();
     }
     
-    // 3. Структурування даних в JSON
+    // Структурування даних в JSON через AI
     const parsed = await parseTtnDataFromText(textInput, dbContext);
 
-    // 4. ПІДБІР ДАНИХ ІЗ БАЗИ ДАНИХ
+    // ПІДБІР ДАНИХ ІЗ БАЗИ ДАНИХ
     const drivers = await db('drivers').select('*');
     const vehicles = await db('vehicles').select('*');
     const shippers = await db('shippers').select('*');
@@ -57,47 +58,6 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
     const destinations = await db('destinations').select('*');
 
     let dbDriver, dbVehicle, dbShipper, dbFraction, dbDest;
-
-    // Відстань Левенштейна для виявлення оддруківок
-    const getLevenshteinDistance = (a, b) => {
-      const tmp = [];
-      for (let i = 0; i <= b.length; i++) tmp[i] = [i];
-      for (let j = 0; j <= a.length; j++) tmp[0][j] = j;
-      for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-          tmp[i][j] = b[i - 1] === a[j - 1] 
-            ? tmp[i - 1][j - 1] 
-            : Math.min(tmp[i - 1][j - 1] + 1, tmp[i][j - 1] + 1, tmp[i - 1][j] + 1);
-        }
-      }
-      return tmp[b.length][a.length];
-    };
-
-    // Розумний пошук: розбиває ключові слова по комі і перевіряє кожне окремо + враховує оддруківки та відмінки
-    const fuzzyMatch = (dbField, searchKey) => {
-      if (!dbField || !searchKey) return false;
-      const search = searchKey.toLowerCase().trim();
-      const keywords = dbField.toLowerCase().split(',').map(k => k.trim());
-      
-      const normalize = (w) => {
-        return w.replace(/(ому|ого|ова|ами|ем|ом|ий|ій|ів|а|е|о|и|у|я|і|ь)$/g, '');
-      };
-      
-      return keywords.some(k => {
-        // 1. Пряме входження
-        if (k.includes(search) || search.includes(k)) return true;
-        
-        // 2. Порівняння за основою слова (відмінювання/закінчення)
-        const stemK = normalize(k);
-        const stemSearch = normalize(search);
-        if (stemK.length >= 3 && stemK === stemSearch) return true;
-        
-        // 3. Пошук оддруківок через відстань Левенштейна
-        const dist = getLevenshteinDistance(k, search);
-        const maxAllowed = k.length <= 4 ? 1 : 2;
-        return dist <= maxAllowed;
-      });
-    };
 
     if (parsed.driver_name) {
       const driverKey = parsed.driver_name.toLowerCase();
@@ -181,7 +141,7 @@ export async function processTtnText(ctx, textInput, dbContext = null) {
 }
 
 export async function rebuildPendingTtn(ctx) {
-  const p = ctx.session.pendingTtn;
+  const p = ctx.session?.pendingTtn;
   if (!p) return null;
 
   const dbDriver = p.driver_id ? await db('drivers').where({ id: p.driver_id }).first() : null;
@@ -190,25 +150,14 @@ export async function rebuildPendingTtn(ctx) {
   const dbFraction = p.fraction_id ? await db('fractions').where({ id: p.fraction_id }).first() : null;
   const dbDest = p.destination_id ? await db('destinations').where({ id: p.destination_id }).first() : null;
 
-  let isComplete = !!(dbDriver && dbVehicle && dbShipper && dbFraction && dbDest && p.weight_netto);
-
-  let date = new Date(p.target_date);
-  if (isNaN(date.getTime())) {
-    date = new Date();
-  }
-  const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
-  const formattedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} р.`;
-
-  const netto = p.weight_netto ? parseFloat(p.weight_netto) : null;
+  const isComplete = !!(dbDriver && dbVehicle && dbShipper && dbFraction && dbDest && p.weight_netto);
+  const formattedDate = formatUkrainianDate(p.target_date);
+  const weights = calculateWeights(p.weight_netto);
 
   const defaultStorage = await getSetting('default_vehicle_storage', 'м. Київ, вул. Центральна, 1');
   const vehicleStorage = (dbVehicle && dbVehicle.storage_point) || defaultStorage;
   
   if (isComplete) {
-    const brutto = 39.8;
-    const computedTare = parseFloat((brutto - netto).toFixed(2));
-    const formatVal = (val) => val !== null && val !== undefined ? val.toString().replace('.', ',') : '';
-
     const ttnData = {
       ...staticPresets,
       consignee_info: dbDriver.info || staticPresets.consignee_info,
@@ -223,37 +172,36 @@ export async function rebuildPendingTtn(ctx) {
       driver_license: dbDriver.license,
       unloading_point: dbDest.name,
       cargo_name: dbFraction.name,
-      weight_netto: formatVal(netto),
-      weight_brutto: formatVal(brutto),
-      tare_and_brutto: `${formatVal(computedTare)}/${formatVal(brutto)}`,
-      weight_brutto_words: `${formatVal(brutto)} т.`
+      weight_netto: formatNumberComma(weights.netto),
+      weight_brutto: formatNumberComma(weights.brutto),
+      tare_and_brutto: `${formatNumberComma(weights.tare)}/${formatNumberComma(weights.brutto)}`,
+      weight_brutto_words: `${formatNumberComma(weights.brutto)} т.`
     };
     ctx.session.pendingTtnData = ttnData;
   } else {
     ctx.session.pendingTtnData = null;
   }
 
-  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage };
+  return { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, weights, formattedDate, isComplete, vehicleStorage };
 }
 
-export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, netto, formattedDate, isComplete, vehicleStorage) {
-  const esc = (s) => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+export function getPreviewMessage(details) {
+  const { dbDriver, dbVehicle, dbShipper, dbFraction, dbDest, weights, formattedDate, isComplete, vehicleStorage } = details;
 
   let confirmText = `<u>📄 <b>Перевірте дані для ТТН:</b></u>\n\n` +
-    `<code>📅 Дата:</code> <i>${esc(formattedDate) || '❌ Не вказано'}</i>\n\n` +
-    `<code>👤 Водій:</code> <i>${dbDriver ? esc(dbDriver.fio) : '❌ Відсутній або не знайдено'}</i>\n` +
-    `<code>🚗 Авто:</code> <i>${dbVehicle ? esc(dbVehicle.car_info) : '❌ Відсутнє або не знайдено'}</i>\n` +
-    `<code>🏠 Стоянка:</code> <i>${esc(vehicleStorage) || '❌ Не вказано'}</i>\n\n` +
-    `<code>🏢 Відправник:</code> <i>${dbShipper ? esc(dbShipper.manager) : '❌ Відсутній або не знайдено'}</i>\n\n` +
-    `<code>🪨 Вантаж:</code> <i>${dbFraction ? esc(dbFraction.name) : '❌ Відсутній або не знайдено'}</i>\n` +
-    `<code>📍 Розвантаження:</code> <i>${dbDest ? esc(dbDest.name) : '❌ Відсутнє або не знайдено'}</i>\n\n`;
+    `<code>📅 Дата:</code> <i>${escapeHtml(formattedDate) || '❌ Не вказано'}</i>\n\n` +
+    `<code>👤 Водій:</code> <i>${dbDriver ? escapeHtml(dbDriver.fio) : '❌ Відсутній або не знайдено'}</i>\n` +
+    `<code>🚗 Авто:</code> <i>${dbVehicle ? escapeHtml(dbVehicle.car_info) : '❌ Відсутнє або не знайдено'}</i>\n` +
+    `<code>🏠 Стоянка:</code> <i>${escapeHtml(vehicleStorage) || '❌ Не вказано'}</i>\n\n` +
+    `<code>🏢 Відправник:</code> <i>${dbShipper ? escapeHtml(dbShipper.manager) : '❌ Відсутній або не знайдено'}</i>\n\n` +
+    `<code>🪨 Вантаж:</code> <i>${dbFraction ? escapeHtml(dbFraction.name) : '❌ Відсутній або не знайдено'}</i>\n` +
+    `<code>📍 Розвантаження:</code> <i>${dbDest ? escapeHtml(dbDest.name) : '❌ Відсутнє або не знайдено'}</i>\n\n`;
     
-  if (netto) {
-    const computedTare = parseFloat((39.8 - netto).toFixed(2));
+  if (weights?.netto) {
     confirmText += `<code>⚖️ Вага:</code>\n` +
-      `  • <code>Нетто:</code> <i><b>${netto} т.</b></i>\n` +
-      `  • <code>Тара:</code> <i><b>${computedTare} т.</b></i>\n` +
-      `  • <code>Брутто:</code> <i><b>39.8 т.</b></i>\n`;
+      `  • <code>Нетто:</code> <i><b>${weights.netto} т.</b></i>\n` +
+      `  • <code>Тара:</code> <i><b>${weights.tare} т.</b></i>\n` +
+      `  • <code>Брутто:</code> <i><b>${weights.brutto} т.</b></i>\n`;
   } else {
     confirmText += `<code>⚖️ Вага (нетто):</code> ❌ Не вказано\n`;
   }
@@ -265,7 +213,7 @@ export function getPreviewMessage(dbDriver, dbVehicle, dbShipper, dbFraction, db
     if (!dbShipper) missingFields.push('🏢 Відправник');
     if (!dbFraction) missingFields.push('🪨 Вантаж');
     if (!dbDest) missingFields.push('📍 Розвантаження');
-    if (!netto) missingFields.push('⚖️ Вага');
+    if (!weights?.netto) missingFields.push('⚖️ Вага');
 
     confirmText += `\n───────────────────\n`;
     confirmText += `🚨 <b>НЕ ВИСТАЧАЄ ДАНИХ:</b>\n`;
@@ -318,7 +266,7 @@ export async function sendOrEditPreview(ctx, forceReply = false) {
     if (!details) {
       return ctx.reply("❌ Помилка: дані ТТН не знайдено.");
     }
-    const text = getPreviewMessage(details.dbDriver, details.dbVehicle, details.dbShipper, details.dbFraction, details.dbDest, details.netto, details.formattedDate, details.isComplete, details.vehicleStorage);
+    const text = getPreviewMessage(details);
     const reply_markup = getPreviewKeyboard(details.isComplete);
     if (ctx.callbackQuery && !forceReply) {
       await ctx.editMessageText(text, { reply_markup, parse_mode: "HTML" }).catch(() => {});
@@ -406,60 +354,69 @@ export async function showDateOptions(ctx) {
   });
 }
 
-export async function showDriversList(ctx) {
-  const drivers = await db('drivers').select('*');
+/**
+ * Універсальний рендерер вибору сутностей для ТТН (DRY)
+ */
+async function showEntitySelectionList(ctx, { title, tableName, getButtonText, getCallbackData }) {
+  const items = await db(tableName).select('*');
   const keyboard = new InlineKeyboard();
-  drivers.forEach(d => {
-    keyboard.text(d.fio, `ttn_set_driver_${d.id}`).row();
+  items.forEach(item => {
+    keyboard.text(getButtonText(item), getCallbackData(item)).row();
   });
   keyboard.text("⬅️ Назад", "ttn_edit_main");
-  await ctx.editMessageText("👤 **Оберіть водія із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
+  await ctx.editMessageText(title, { reply_markup: keyboard, parse_mode: "Markdown" });
+}
+
+export async function showDriversList(ctx) {
+  await showEntitySelectionList(ctx, {
+    title: "👤 **Оберіть водія із бази даних:**",
+    tableName: 'drivers',
+    getButtonText: (d) => d.fio,
+    getCallbackData: (d) => `ttn_set_driver_${d.id}`
+  });
 }
 
 export async function showVehiclesList(ctx) {
-  const vehicles = await db('vehicles').select('*');
-  const keyboard = new InlineKeyboard();
-  vehicles.forEach(v => {
-    keyboard.text(`${v.plate_number} (${v.car_info.substring(0, 15)})`, `ttn_set_vehicle_${v.id}`).row();
+  await showEntitySelectionList(ctx, {
+    title: "🚗 **Оберіть автомобіль із бази даних:**",
+    tableName: 'vehicles',
+    getButtonText: (v) => `${v.plate_number} (${v.car_info.substring(0, 15)})`,
+    getCallbackData: (v) => `ttn_set_vehicle_${v.id}`
   });
-  keyboard.text("⬅️ Назад", "ttn_edit_main");
-  await ctx.editMessageText("🚗 **Оберіть автомобіль із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
 }
 
 export async function showShippersList(ctx) {
-  const shippers = await db('shippers').select('*');
-  const keyboard = new InlineKeyboard();
-  shippers.forEach(s => {
-    keyboard.text(s.manager, `ttn_set_shipper_${s.id}`).row();
+  await showEntitySelectionList(ctx, {
+    title: "🏢 **Оберіть вантажовідправника із бази даних:**",
+    tableName: 'shippers',
+    getButtonText: (s) => s.manager,
+    getCallbackData: (s) => `ttn_set_shipper_${s.id}`
   });
-  keyboard.text("⬅️ Назад", "ttn_edit_main");
-  await ctx.editMessageText("🏢 **Оберіть вантажовідправника із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
 }
 
 export async function showFractionsList(ctx) {
-  const fractions = await db('fractions').select('*');
-  const keyboard = new InlineKeyboard();
-  fractions.forEach(f => {
-    const shortName = f.name.length > 20 ? f.name.substring(0, 17) + "..." : f.name;
-    const btnText = f.fraction_key ? `📎 ${f.fraction_key} (${shortName})` : f.name.substring(0, 30);
-    keyboard.text(btnText, `ttn_set_fraction_${f.id}`).row();
+  await showEntitySelectionList(ctx, {
+    title: "🪨 **Оберіть фракцію/вантаж із бази даних:**",
+    tableName: 'fractions',
+    getButtonText: (f) => {
+      const shortName = f.name.length > 20 ? f.name.substring(0, 17) + "..." : f.name;
+      return f.fraction_key ? `📎 ${f.fraction_key} (${shortName})` : f.name.substring(0, 30);
+    },
+    getCallbackData: (f) => `ttn_set_fraction_${f.id}`
   });
-  keyboard.text("⬅️ Назад", "ttn_edit_main");
-  await ctx.editMessageText("🪨 **Оберіть фракцію/вантаж із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
 }
 
 export async function showDestinationsList(ctx) {
-  const destinations = await db('destinations').select('*');
-  const keyboard = new InlineKeyboard();
-  destinations.forEach(d => {
-    keyboard.text(d.name.substring(0, 30), `ttn_set_destination_${d.id}`).row();
+  await showEntitySelectionList(ctx, {
+    title: "📍 **Оберіть пункт розвантаження із бази даних:**",
+    tableName: 'destinations',
+    getButtonText: (d) => d.name.substring(0, 30),
+    getCallbackData: (d) => `ttn_set_destination_${d.id}`
   });
-  keyboard.text("⬅️ Назад", "ttn_edit_main");
-  await ctx.editMessageText("📍 **Оберіть пункт розвантаження із бази даних:**", { reply_markup: keyboard, parse_mode: "Markdown" });
 }
 
 export async function generateAndSendTtnPdf(ctx) {
-  const ttnData = ctx.session.pendingTtnData;
+  const ttnData = ctx.session?.pendingTtnData;
   if (!ttnData) {
     return ctx.reply("❌ Помилка: дані ТТН не знайдено або сесія застаріла.");
   }
@@ -472,16 +429,12 @@ export async function generateAndSendTtnPdf(ctx) {
 
     const pdfBuffer = await generateTtnPdf(ttnData);
     const pdfFilename = `TTN_No_${ttnCounters.full.replace('/', '_')}.pdf`;
-    const pdfPath = path.join(__dirname, pdfFilename);
-    await fs.promises.writeFile(pdfPath, pdfBuffer);
 
+    // Надсилання PDF напряму з Buffer (без запису на диск)
     await ctx.replyWithDocument(
-      new InputFile(pdfPath),
+      new InputFile(pdfBuffer, pdfFilename),
       { caption: `✅ **ТТН № ${ttnCounters.full}** успішно сформована!`, parse_mode: "Markdown" }
     );
-    
-    // Асинхронне видалення файлу
-    await fs.promises.unlink(pdfPath).catch(console.error);
 
     ctx.session.pendingTtnData = null;
     ctx.session.pendingTtn = null;
